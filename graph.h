@@ -19,7 +19,10 @@ struct VNode
 	int delay = 1;
 	// the number of incoming edges
 	int incoming = 0;
-	// for easily read info of its predecessors and successors
+	// temporary number of incoming edges (used for topo)
+	int tempIncoming = 0;
+	// for easily reading info of its predecessors and successors
+	// the nodes are stored in a adjcent list
 	std::vector<VNode*> pred;
 	std::vector<VNode*> succ;
 	VNode(int _num,std::string _name,std::string _type,int _delay = 1):
@@ -34,9 +37,9 @@ public:
 	graph(std::ifstream& infile);
 	~graph();
 
-	// output function
+	// output
 	void printAdjlist();
-	void printOutput();
+	void mainScheduling();
 
 	// EDS starting from the front
 	void EDS();
@@ -45,12 +48,18 @@ public:
 	// EDS for resource-constrained scheduling problems
 	void RCEDS();
 
+	// List scheduling for resource-constrained problems
+	void RCLS();
+	// Force-directed scheduling for resource-constrained problems
+	void FDS(){};
+
 	// ILP formulation
 	void generateRCSILP(std::ofstream& outfile);
 	void generateTCSILP(std::ofstream& outfile);
 
 	// set basic parameters
 	inline void setLC(double _LC) { LC = _LC; };
+	inline void setConstrainedLatency(int conlatency) { ConstrainedLatency = conlatency; };
 	inline void setMODE(std::vector<int> _MODE) { MODE = _MODE; };
 	inline void setMAXRESOURCE(int mul,int alu)
 		{ MAXRESOURCE.first = mul; MAXRESOURCE.second = alu; };
@@ -59,6 +68,7 @@ private:
 	// initialization
 	void initialize();
 	void clearMark();
+	void setDegrees(); // in-degree or out-degree
 	void addVertex(std::string name,std::string type);
 	bool addEdge(std::string vFrom,std::string vTo);
 	VNode* findVertex(std::string name);
@@ -81,14 +91,16 @@ private:
 	int vertex = 0;
 	int edge = 0;
 	int typeNum = 0;
+	int numScheduledOp = 0;
 
 	// critical path delay
 	int cdepth = 0;
+	// maximum latency of scheduled operations
 	int maxLatency = 0;
 
 	// Use adjacent list to store the graph
 	std::vector<VNode*> adjlist;
-	// mark for DFS-based topological sorting
+	// mark for DFS-based topological sorting and scheduled operations
 	std::vector<int> mark;
 	// topological ordering
 	std::vector<VNode*> order;
@@ -111,11 +123,12 @@ private:
 
 	// latency factor
 	double LC = 1;
+	int ConstrainedLatency;
 	// for resource-constrained scheduling
 	std::pair<int,int> MAXRESOURCE;
 
-	// MODE[0]: 0 EDS    1 EDSrev    2 EDSResourceConstrained
-	//			3 ILP for TCS        4 ILP for RCS
+	// MODE[0]: 0 EDS            1 EDSrev        2 EDSResourceConstrained
+	//			3 LS for RCS     4 ILP for TCS   5 ILP for RCS
 	// MODE[1]: 0 DFS    1 Kahn
 	std::vector<int> MODE;
 };

@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <vector>
 #include <utility> // pairs
 #include <map>
@@ -16,9 +17,7 @@
 #include <regex> // regular expression for string split
 #include <iterator>
 
-#include <windows.h>
 #include "watch.h" // for high-accuracy time counting
-
 #include "graph.h"
 using namespace std;
 
@@ -141,6 +140,12 @@ string graph::mapResourceType(string type)
 	return type;
 }
 
+void graph::setDegrees()
+{
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+		(*pnode)->tempIncoming = (*pnode)->incoming = (*pnode)->pred.size();
+}
+
 void graph::dfsASAP(VNode* node)
 {
 	if (mark[node->num])
@@ -155,6 +160,10 @@ void graph::dfsASAP(VNode* node)
 	}
 	axap[node->num].first = asapmax; // asap
 	cdepth = max(asapmax + node->delay - 1,cdepth); // critical path delay
+	if (MODE[0] == 0 || MODE[0] == 1 || MODE[0] == 4)
+		setConstrainedLatency(int(cdepth*LC)); // TCS
+	else
+		setConstrainedLatency(MAXINT); // RCS
 	mark[node->num] = 1;
 	order.push_back(node);
 }
@@ -165,7 +174,7 @@ void graph::dfsALAP(VNode* node) // different from asap
 		return;
 	int alapmin = MAXINT;
 	if (node->succ.empty())
-		alapmin = int(cdepth*LC) - node->delay + 1; // dfsasap must be done first
+		alapmin = ConstrainedLatency - node->delay + 1; // dfsasap must be done first
 	else for (auto psucc = node->succ.cbegin(); psucc != node->succ.cend(); ++psucc)
 	{
 		dfsALAP(*psucc);
@@ -177,6 +186,7 @@ void graph::dfsALAP(VNode* node) // different from asap
 
 void graph::topologicalSortingDFS()
 {
+	setDegrees();
 	cout << "Begin topological sorting..." << endl;
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
 		if ((*pnode)->succ.empty() && !mark[(*pnode)->num]) // out-degree = 0
@@ -192,30 +202,36 @@ void graph::topologicalSortingKahn()
 {
 	cout << "Begin topological sorting (Kahn)..." << endl;
 	order.clear();
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
+		if ((*pnode)->succ.empty() && !mark[(*pnode)->num]) // out-degree = 0
+			dfsASAP(*pnode);
 	clearMark();
-	vector<VNode*> temp;
-	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // alap
 		if ((*pnode)->pred.empty() && !mark[(*pnode)->num]) // in-degree = 0
-			temp.push_back(*pnode);
+			dfsALAP(*pnode);
+	vector<VNode*> temp;
+	setDegrees();
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
-		(*pnode)->incoming = (*pnode)->pred.size();
+		if ((*pnode)->pred.empty()) // in-degree = 0
+			temp.push_back(*pnode);
 	while (!temp.empty())
 	{
 		order.push_back(temp[0]);
 		for (auto pnode = temp[0]->succ.cbegin(); pnode != temp[0]->succ.cend(); ++pnode)
 		{
-			(*pnode)->incoming--;
+			(*pnode)->tempIncoming--;
 			if ((*pnode)->incoming == 0)
 				temp.push_back(*pnode);
 		}
 		temp.erase(temp.begin());
 	}
 	cout << "Topological sorting (Kahn) done!" << endl;
+	clearMark();
 }
 
 bool graph::scheduleNodeStep(VNode* node,int step)
 {
-	if (step + node->delay - 1 > int(cdepth*LC)) // important to minus 1
+	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
 	{
 		cout << "Invalid schedule!" << endl;
 		return false;
@@ -224,6 +240,8 @@ bool graph::scheduleNodeStep(VNode* node,int step)
 		nrt[i][mapResourceType(node->type)]++;
 	schedule[node->num] = step;
 	maxLatency = max(maxLatency,step + node->delay - 1);
+	numScheduledOp++;
+	// mark[node->num] = 1;
 	return true;
 }
 
@@ -233,6 +251,8 @@ bool graph::scheduleNodeStepResource(VNode* node,int step)
 		nrt[i][mapResourceType(node->type)]++;
 	schedule[node->num] = step;
 	maxLatency = max(maxLatency,step + node->delay - 1); // important to minus 1
+	numScheduledOp++;
+	// mark[node->num] = 1;
 	return true;
 }
 
@@ -251,14 +271,15 @@ void graph::EDS()
 {
 	cout << "Begin EDS scheduling...\n" << endl;
 	watch.restart();
-	topologicalSortingDFS();
-	if (MODE[1] == 1)
+	if (MODE[1] == 0)
+		topologicalSortingDFS();
+	else
 		topologicalSortingKahn();
 	// initialize N_r(t)
 	map<string,int> temp;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
 		temp[pnr->first] = 0;
-	for (int i = 0; i <= int(cdepth*LC); ++i) // number+1
+	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
 		nrt.push_back(temp);
 
 	// placing operations on critical path
@@ -305,14 +326,15 @@ void graph::EDSrev()
 {
 	cout << "Begin EDS scheduling...\n" << endl;
 	watch.restart();
-	topologicalSortingDFS();
-	if (MODE[1] == 1)
+	if (MODE[1] == 0)
+		topologicalSortingDFS();
+	else
 		topologicalSortingKahn();
 	// initialize N_r(t)
 	map<string,int> temp;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
 		temp[pnr->first] = 0;
-	for (int i = 0; i <= int(cdepth*LC); ++i) // number+1
+	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
 		nrt.push_back(temp);
 
 	// placing operations on critical path
@@ -357,9 +379,10 @@ void graph::EDSrev()
 void graph::RCEDS() // ResourceConstrained
 {
 	cout << "Begin EDS resource-constrained scheduling...\n" << endl;
-	topologicalSortingDFS();
 	watch.restart();
-	if (MODE[1] == 1)
+	if (MODE[1] == 0)
+		topologicalSortingDFS();
+	else
 		topologicalSortingKahn();
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
@@ -380,7 +403,7 @@ void graph::RCEDS() // ResourceConstrained
 	cout << "Begin placing operations..." << endl;
 	for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
 	{
-		int a = axap[(*pnode)->num].first, b = MAXINT;
+		int a = axap[(*pnode)->num].first, b = axap[(*pnode)->num].second;
 		if (!(*pnode)->pred.empty()) // because of topo order, it's pred must have been scheduled
 			for (auto pprec = (*pnode)->pred.cbegin(); pprec != (*pnode)->pred.cend(); ++pprec)
 				a = max(a,schedule[(*pprec)->num] + (*pprec)->delay);
@@ -402,11 +425,88 @@ void graph::RCEDS() // ResourceConstrained
 				break;
 			}
 		}
-		scheduleNodeStepResource(*pnode,maxstep); // something difference
+		scheduleNodeStepResource(*pnode,maxstep); // some differences
 	}
 	watch.stop();
 	cout << "Placing operations done!\n" << endl;
 	cout << "Finish EDS scheduling!\n" << endl;
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
+void graph::RCLS() // Resource-constrained List Scheduling
+{
+	cout << "Begin resource-constrained list scheduling (LS)...\n" << endl;
+	watch.restart();
+	if (MODE[1] == 0)
+		topologicalSortingDFS();
+	else
+		topologicalSortingKahn();
+	// initialize N_r(t)
+	map<string,int> temp,maxNr;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		if (pnr->first == "mul" || pnr->first == "MUL")
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.first;
+		}
+		else
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.second;
+		}
+	nrt.push_back(temp); // nrt[0]
+
+	// NO nrt.push_back! NO placeCriticalPath!
+	cout << "Begin placing operations..." << endl;
+	int cstep = 0;
+	vector<VNode*> readyList;
+	clearMark();
+	setDegrees();
+	while (numScheduledOp < vertex)
+	{
+		cstep++;
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+			if (mark[(*pnode)->num] == 0 && (*pnode)->tempIncoming == 0)
+			{
+				int a = axap[(*pnode)->num].first;
+				for (auto pprec = (*pnode)->pred.cbegin(); pprec != (*pnode)->pred.cend(); ++pprec)
+					a = max(a,schedule[(*pprec)->num] + (*pprec)->delay);
+				if (a <= cstep) // in-degree = 0
+				{
+					readyList.push_back(*pnode);
+					mark[(*pnode)->num] = 1; // have been pushed into readyList
+				}
+			}
+		// std::sort(readyList.begin(),readyList.end(),LSCompare);
+		std::sort(readyList.begin(),readyList.end(),
+			[this](VNode* const& v1, VNode* const& v2)
+			{ return ((axap[v1->num].second - axap[v1->num].first) < (axap[v2->num].second - axap[v2->num].first)); }); // lambda
+		int i = 0;
+		while (i < readyList.size())
+		{
+			// cout << (*pnode)->name << " " << a << " " << b << endl;
+			int flag = 1;
+			for (int d = 1; d <= readyList[i]->delay; ++d)
+			{
+				if (cstep+d-1 >= nrt.size())
+					nrt.push_back(temp); // important!
+				if (nrt[cstep+d-1][mapResourceType(readyList[i]->type)]+1 > maxNr[mapResourceType(readyList[i]->type)])
+					flag = 0;
+			}
+			if (flag == 1)
+			{
+				scheduleNodeStepResource(readyList[i],cstep);
+				for (auto pnode = readyList[i]->succ.begin(); pnode != readyList[i]->succ.end(); ++pnode)
+					(*pnode)->tempIncoming--;
+				readyList.erase(readyList.begin()+i);
+				i--;
+			}
+			i++;
+		}
+	}
+	watch.stop();
+	cout << "Placing operations done!\n" << endl;
+	cout << "Finish list scheduling!\n" << endl;
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
@@ -416,37 +516,52 @@ void graph::countResource()
 	{
 		cout << ptype->first << ": ";
 		int res = 0;
-		for (int i = 1; i <= maxLatency; ++i) // int(cdepth*LC)
+		for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
 			res = max(res,nrt[i][mapResourceType(ptype->first)]);
 		cout << res << endl;
 		// if (ptype->first == "MUL" || ptype->first == "mul")
-			for (int i = 1; i <= maxLatency; ++i) // int(cdepth*LC)
+			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
 				cout << "Step " << i << ": " << nrt[i][mapResourceType(ptype->first)] << endl;
 	}
 }
 
-void graph::printOutput()
+void graph::mainScheduling()
 {
 	switch (MODE[0])
 	{
 		case 0: EDS();break;
 		case 1: EDSrev();break;
 		case 2: RCEDS();break;
+		case 3: RCLS();break;
 	}
 	cout << "Output as follows:" << endl;
-	cout << "Topological order:" << endl;
-	for (auto pnode : order)
-		cout << pnode->name << " ";
-	cout << "\n" << endl;
-	cout << "Time frame:" << endl;
-	int cnt = 1;
-	for (auto frame : axap)
-		cout << cnt++ << ": [ " << frame.first << " , " << frame.second << " ]" << endl;
-	cout << endl;
+	// cout << "Topological order:" << endl;
+	// for (auto pnode : order)
+	// 	cout << pnode->name << " ";
+	// cout << "\n" << endl;
+	// cout << "Time frame:" << endl;
+	// int cnt = 1;
+	// for (auto frame : axap)
+	// 	cout << cnt++ << ": [ " << frame.first << " , " << frame.second << " ]" << endl;
+	// cout << endl;
 	cout << "Final schedule:" << endl;
 	for (int i = 0; i < vertex; ++i)
 		cout << i+1 << ": " << schedule[i] << ((i+1)%5==0 ? "\n" : "\t");
 	cout << endl;
+	cout << "Gantt graph:" << endl;
+	cout << "    ";
+	for (int i = 1; i <= maxLatency; ++ i)
+		cout << i % 10;
+	cout << endl;
+	for (int i = 0; i < vertex; ++i)
+	{
+		cout << setw(4) << std::left << i+1;
+		for (int j = 1; j < schedule[i]; ++j)
+			cout << " ";
+		for (int j = 1; j <= adjlist[i]->delay; ++j)
+			cout << (adjlist[i]->delay > 1 ? "X" : "O");
+		cout << endl;
+	}
 	cout << "Total latency: " << maxLatency << endl;
 	if (MODE[0] == 2)
 		cout << "Constrained resource:\n"
@@ -487,8 +602,8 @@ void graph::generateTCSILP(ofstream& outfile)
 		for (int i = axap[cnt].first; i <= axap[cnt].second + adjlist[cnt]->delay - 1; ++i)
 			// cout << i << " " << adjlist[cnt]->type << endl;
 			rowResource[i][mapResourceType(adjlist[cnt]->type)].push_back(cnt); // push delay
-	cout << "Critical path delay: " << int(cdepth*LC) << endl;
-	for (int i = 1; i <= int(cdepth*LC); ++i)
+	cout << "Critical path delay: " << ConstrainedLatency << endl;
+	for (int i = 1; i <= ConstrainedLatency; ++i)
 		for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
 		{
 			if (rowResource[i][ptype->first].size() < 2)
@@ -597,8 +712,8 @@ void graph::generateRCSILP(ofstream& outfile)
 		for (int i = axap[cnt].first; i <= axap[cnt].second + adjlist[cnt]->delay - 1; ++i)
 			// cout << i << " " << adjlist[cnt]->type << endl;
 			rowResource[i][mapResourceType(adjlist[cnt]->type)].push_back(cnt); // push delay
-	// cout << "Critical path delay: " << int(cdepth*LC) << endl;
-	for (int i = 1; i <= vertex; ++i) // int(cdepth*LC)
+	// cout << "Critical path delay: " << ConstrainedLatency << endl;
+	for (int i = 1; i <= vertex; ++i) // ConstrainedLatency
 		for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
 		{
 			if (rowResource[i][ptype->first].size() < 2)

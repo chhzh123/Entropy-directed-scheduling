@@ -10,6 +10,8 @@
 #ifndef WATCH_H
 #define WATCH_H
 
+#include <windows.h>
+
 class stop_watch
 {
 public:
