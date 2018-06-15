@@ -22,7 +22,6 @@
 using namespace std;
 
 #define MUL_DELAY 2 // default MUL delay
-#define MAXINT 0x3f3f3f3f
 
 // for high-accuracy time counting
 stop_watch watch;
@@ -43,9 +42,6 @@ void graph::clearMark()
 void graph::initialize()
 {
 	cout << "Begin initializing..." << endl;
-	pair<int,int> tpair(0,0);
-	for (int i = 0; i < vertex; ++i)
-		axap.push_back(tpair);
 	clearMark();
 	cout << "Initialized successfully!\n" << endl;
 }
@@ -150,16 +146,14 @@ void graph::dfsASAP(VNode* node)
 {
 	if (mark[node->num])
 		return;
-	int asapmax = 0;
-	if (node->pred.empty())
-		asapmax = 1;
-	else for (auto pprec = node->pred.cbegin(); pprec != node->pred.cend(); ++pprec)
-	{
-		dfsASAP(*pprec);
-		asapmax = max(axap[(*pprec)->num].first + (*pprec)->delay,asapmax);
-	}
-	axap[node->num].first = asapmax; // asap
-	cdepth = max(asapmax + node->delay - 1,cdepth); // critical path delay
+	if (!(node->pred.empty()))
+		for (auto pprec = node->pred.cbegin(); pprec != node->pred.cend(); ++pprec)
+		{
+			dfsASAP(*pprec);
+			node->setASAP((*pprec)->asap + (*pprec)->delay);
+			node->setLength();
+		}
+	cdepth = max(node->asap + node->delay - 1,cdepth); // critical path delay
 	if (MODE[0] == 0 || MODE[0] == 1 || MODE[0] == 4)
 		setConstrainedLatency(int(cdepth*LC)); // TCS
 	else
@@ -172,15 +166,14 @@ void graph::dfsALAP(VNode* node) // different from asap
 {
 	if (mark[node->num])
 		return;
-	int alapmin = MAXINT;
 	if (node->succ.empty())
-		alapmin = ConstrainedLatency - node->delay + 1; // dfsasap must be done first
+		node->setALAP(ConstrainedLatency - node->delay + 1); // ConstrainedLatency is used here, dfsasap must be done first
 	else for (auto psucc = node->succ.cbegin(); psucc != node->succ.cend(); ++psucc)
 	{
 		dfsALAP(*psucc);
-		alapmin = min(axap[(*psucc)->num].second - node->delay,alapmin);
+		node->setALAP((*psucc)->alap - node->delay);
+		node->setLength();
 	}
-	axap[node->num].second = alapmin; // alap
 	mark[node->num] = 1;
 }
 
@@ -229,7 +222,7 @@ void graph::topologicalSortingKahn()
 	clearMark();
 }
 
-bool graph::scheduleNodeStep(VNode* node,int step)
+bool graph::scheduleNodeStep(VNode* node,int step,int mode = 0)
 {
 	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
 	{
@@ -238,21 +231,25 @@ bool graph::scheduleNodeStep(VNode* node,int step)
 	}
 	for (int i = step; i < step + node->delay; ++i)
 		nrt[i][mapResourceType(node->type)]++;
-	schedule[node->num] = step;
+	if (mode == 0)
+		node->schedule(step);
+	else
+		node->scheduleBackward(step);
 	maxLatency = max(maxLatency,step + node->delay - 1);
 	numScheduledOp++;
-	// mark[node->num] = 1;
 	return true;
 }
 
-bool graph::scheduleNodeStepResource(VNode* node,int step)
+bool graph::scheduleNodeStepResource(VNode* node,int step,int mode = 0)
 {
 	for (int i = step; i < step + node->delay; ++i)
 		nrt[i][mapResourceType(node->type)]++;
-	schedule[node->num] = step;
+	if (mode == 0)
+		node->schedule(step);
+	else
+		node->scheduleBackward(step);
 	maxLatency = max(maxLatency,step + node->delay - 1); // important to minus 1
 	numScheduledOp++;
-	// mark[node->num] = 1;
 	return true;
 }
 
@@ -260,8 +257,8 @@ void graph::placeCriticalPath()
 {
 	cout << "Begin placing critical path..." << endl;
 	for (auto node : order)
-		if (axap[node->num].first == axap[node->num].second)
-			scheduleNodeStep(node,axap[node->num].first);
+		if (node->asap == node->alap)
+			scheduleNodeStep(node,node->asap);
 		else
 			edsOrder.push_back(node);
 	cout << "Placing critical path done!" << endl;
@@ -290,11 +287,8 @@ void graph::EDS()
 	cout << "Begin placing other nodes..." << endl;
 	for (auto pnode = edsOrder.cbegin(); pnode != edsOrder.cend(); ++pnode)
 	{
-		int a = axap[(*pnode)->num].first, b = axap[(*pnode)->num].second;
+		int a = (*pnode)->asap, b = (*pnode)->alap;
 		// because of topo order, it's pred must have been scheduled
-		if (!(*pnode)->pred.empty())
-			for (auto pprec = (*pnode)->pred.cbegin(); pprec != (*pnode)->pred.cend(); ++pprec)
-				a = max(a,schedule[(*pprec)->num] + (*pprec)->delay);
 		int minnrt = MAXINT, minstep = a;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = a; t <= b; ++t)
@@ -345,10 +339,10 @@ void graph::EDSrev()
 	cout << "Begin placing other nodes..." << endl;
 	for (auto pnode = edsOrder.crbegin(); pnode != edsOrder.crend(); ++pnode)
 	{
-		int a = axap[(*pnode)->num].first, b = axap[(*pnode)->num].second;
+		int a = (*pnode)->asap, b = (*pnode)->alap;
 		if (!(*pnode)->succ.empty()) // because of topo order, it's pred must have been scheduled
 			for (auto psucc = (*pnode)->succ.cbegin(); psucc != (*pnode)->succ.cend(); ++psucc)
-				b = min(b,schedule[(*psucc)->num] - (*pnode)->delay);
+				b = min(b,(*psucc)->cstep - (*pnode)->delay);
 		int minnrt = MAXINT, minstep = b;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = b; t >= a; --t) // --?
@@ -368,7 +362,7 @@ void graph::EDSrev()
 				minstep = t;
 			}
 		}
-		scheduleNodeStep(*pnode,minstep);
+		scheduleNodeStep(*pnode,minstep,1);
 	}
 	watch.stop();
 	cout << "Placing other nodes done!\n" << endl;
@@ -403,10 +397,8 @@ void graph::RCEDS() // ResourceConstrained
 	cout << "Begin placing operations..." << endl;
 	for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
 	{
-		int a = axap[(*pnode)->num].first, b = axap[(*pnode)->num].second;
-		if (!(*pnode)->pred.empty()) // because of topo order, it's pred must have been scheduled
-			for (auto pprec = (*pnode)->pred.cbegin(); pprec != (*pnode)->pred.cend(); ++pprec)
-				a = max(a,schedule[(*pprec)->num] + (*pprec)->delay);
+		int a = (*pnode)->asap, b = (*pnode)->alap;
+		// because of topo order, it's pred must have been scheduled
 		int maxstep = a, maxnrt = 0;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = a; t <= b; ++t)
@@ -466,21 +458,15 @@ void graph::RCLS() // Resource-constrained List Scheduling
 	{
 		cstep++;
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
-			if (mark[(*pnode)->num] == 0 && (*pnode)->tempIncoming == 0)
+			if (mark[(*pnode)->num] == 0 && (*pnode)->tempIncoming == 0 && (*pnode)->asap <= cstep) // in-degree = 0
 			{
-				int a = axap[(*pnode)->num].first;
-				for (auto pprec = (*pnode)->pred.cbegin(); pprec != (*pnode)->pred.cend(); ++pprec)
-					a = max(a,schedule[(*pprec)->num] + (*pprec)->delay);
-				if (a <= cstep) // in-degree = 0
-				{
-					readyList.push_back(*pnode);
-					mark[(*pnode)->num] = 1; // have been pushed into readyList
-				}
+				readyList.push_back(*pnode);
+				mark[(*pnode)->num] = 1; // have been pushed into readyList
 			}
-		// std::sort(readyList.begin(),readyList.end(),LSCompare);
 		std::sort(readyList.begin(),readyList.end(),
-			[this](VNode* const& v1, VNode* const& v2)
-			{ return ((axap[v1->num].second - axap[v1->num].first) < (axap[v2->num].second - axap[v2->num].first)); }); // lambda
+				[](VNode* const& v1, VNode* const& v2) // lambda
+				// { return ((v1->alap - v1->asap) < (v2->alap - v2->asap); });
+				{ return ((v1->length) < (v2->length)); });
 		int i = 0;
 		while (i < readyList.size())
 		{
@@ -541,12 +527,12 @@ void graph::mainScheduling()
 	// cout << "\n" << endl;
 	// cout << "Time frame:" << endl;
 	// int cnt = 1;
-	// for (auto frame : axap)
-	// 	cout << cnt++ << ": [ " << frame.first << " , " << frame.second << " ]" << endl;
+	// for (auto pnode : adjlist)
+	// 	cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl; // need to be printed before scheduling
 	// cout << endl;
 	cout << "Final schedule:" << endl;
 	for (int i = 0; i < vertex; ++i)
-		cout << i+1 << ": " << schedule[i] << ((i+1)%5==0 ? "\n" : "\t");
+		cout << i+1 << ": " << adjlist[i]->cstep << ((i+1)%5==0 ? "\n" : "\t");
 	cout << endl;
 	cout << "Gantt graph:" << endl;
 	cout << "    ";
@@ -556,7 +542,7 @@ void graph::mainScheduling()
 	for (int i = 0; i < vertex; ++i)
 	{
 		cout << setw(4) << std::left << i+1;
-		for (int j = 1; j < schedule[i]; ++j)
+		for (int j = 1; j < adjlist[i]->cstep; ++j)
 			cout << " ";
 		for (int j = 1; j <= adjlist[i]->delay; ++j)
 			cout << (adjlist[i]->delay > 1 ? "X" : "O");
@@ -577,8 +563,8 @@ void graph::generateTCSILP(ofstream& outfile)
 	topologicalSortingDFS();
 	cout << "Time frame:" << endl;
 	int cnt = 1;
-	for (auto frame : axap)
-		cout << cnt++ << ": [ " << frame.first << " , " << frame.second << " ]" << endl;
+	for (auto pnode : adjlist)
+	 	cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl;
 	cout << endl;
 	cout << "Start generating ILP formulas for latency-constrained problems..." << endl;
 
@@ -588,10 +574,10 @@ void graph::generateTCSILP(ofstream& outfile)
 	outfile << "Subject To" << endl;
 	cnt = 0;
 	// Time frame constraints
-	for (auto frame : axap)
+	for (auto pnode : adjlist)
 	{
-		for (int i = frame.first; i <= frame.second; ++i)
-			outfile << "x" << cnt << "," << i << (i == frame.second ? " = 1\n" : " + ");
+		for (int i = pnode->asap; i <= pnode->alap; ++i)
+			outfile << "x" << cnt << "," << i << (i == pnode->alap ? " = 1\n" : " + ");
 		cnt++;
 	}
 	cout << "Time frame constraints generated." << endl;
@@ -599,7 +585,7 @@ void graph::generateTCSILP(ofstream& outfile)
 	// Resource constraints
 	cnt = 0;
 	for (cnt = 0; cnt < vertex; ++cnt)
-		for (int i = axap[cnt].first; i <= axap[cnt].second + adjlist[cnt]->delay - 1; ++i)
+		for (int i = adjlist[cnt]->asap; i <= adjlist[cnt]->alap + adjlist[cnt]->delay - 1; ++i)
 			// cout << i << " " << adjlist[cnt]->type << endl;
 			rowResource[i][mapResourceType(adjlist[cnt]->type)].push_back(cnt); // push delay
 	cout << "Critical path delay: " << ConstrainedLatency << endl;
@@ -626,25 +612,21 @@ void graph::generateTCSILP(ofstream& outfile)
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 		for (auto psucc = (*pnode)->succ.cbegin(); psucc != (*pnode)->succ.cend(); ++psucc)
 		{
-			for (int i = axap[(*pnode)->num].first; i <= axap[(*pnode)->num].second; ++i)
+			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
 				outfile << i << " x" << (*pnode)->num << ","
-						<< i << (i == axap[(*pnode)->num].second ? "" : " + ");
+						<< i << (i == (*pnode)->alap ? "" : " + ");
 			outfile << " - ";
-			for (int i = axap[(*psucc)->num].first; i <= axap[(*psucc)->num].second; ++i)
+			for (int i = (*psucc)->asap; i <= (*psucc)->alap; ++i)
 				outfile << i << " x" << (*psucc)->num << ","
-						<< i << (i == axap[(*psucc)->num].second ? "" : " - ");
+						<< i << (i == (*psucc)->alap ? "" : " - ");
 			outfile << " <= -" << (*pnode)->delay << endl;
 		}
-	// for (int i = 0; i < vertex; ++i)
-	// 	for (int j = axap[i].first; j <= axap[i].second; ++j)
-	// 		outfile << "x" << i << "," << j << " - "
-	// 				<< ((adjlist[i]->type == "mul" || adjlist[i]->type == "MUL") ? "M2" : "M1") << " <= 0" << endl;
 	cout << "Precedence constraints generated." << endl;
 
 	// Bounds NO VARIABLES RHS!
 	outfile << "Bounds" << endl;
 	for (int i = 0; i < vertex; ++i)
-		for (int j = axap[i].first; j <= axap[i].second; ++j)
+		for (int j = adjlist[i]->asap; j <= adjlist[i]->alap; ++j)
 			// outfile << "x" << i << "," << j << " >= 0" <<endl;
 			outfile << "0 <= x" << i << "," << j << " <= 1" <<endl;
 	outfile << "M1 >= 1" << endl;
@@ -654,7 +636,7 @@ void graph::generateTCSILP(ofstream& outfile)
 	// Generals
 	outfile << "Generals" << endl;
 	for (int i = 0; i < vertex; ++i)
-		for (int j = axap[i].first; j <= axap[i].second; ++j)
+		for (int j = adjlist[i]->asap; j <= adjlist[i]->alap; ++j)
 			outfile << "x" << i << "," << j << "\n";
 	outfile << "M1\nM2" << endl;
 	cout << "Generals generated." << endl;
@@ -681,10 +663,10 @@ void graph::generateRCSILP(ofstream& outfile)
 	topologicalSortingDFS();
 	cout << "Time frame:" << endl;
 	int cnt = 1;
-	for (auto paxap = axap.begin(); paxap != axap.end(); ++paxap) // cannot use `auto frame : axap`
+	for (auto pnode = adjlist.begin(); pnode != adjlist.end(); ++pnode)
 	{
-		paxap->second = vertex; // set upper bound
-		cout << cnt++ << ": [ " << paxap->first << " , " << paxap->second << " ]" << endl;
+		(*pnode)->setALAP(vertex); // set upper bound
+		cout << cnt++ << ": [ " << (*pnode)->asap << " , " << (*pnode)->alap << " ]" << endl;
 	}
 	cout << endl;
 	cout << "Start generating ILP formulas for resource-constrained problems..." << endl;
@@ -695,13 +677,13 @@ void graph::generateRCSILP(ofstream& outfile)
 	outfile << "Subject To" << endl;
 	cnt = 0;
 	// Time frame constraints
-	for (auto frame : axap)
+	for (auto pnode : adjlist)
 	{
-		for (int i = frame.first; i <= frame.second; ++i)
-			outfile << "x" << cnt << "," << i << (i == frame.second ? " = 1\n" : " + ");
+		for (int i = pnode->asap; i <= pnode->alap; ++i)
+			outfile << "x" << cnt << "," << i << (i == pnode->alap ? " = 1\n" : " + ");
 		// (t+d-1) x
-		for (int i = frame.first; i <= frame.second; ++i)
-			outfile << (i + adjlist[cnt]->delay - 1) << " x" << cnt << "," << i << " - L <= 0" << endl;
+		for (int i = pnode->asap; i <= pnode->alap; ++i)
+			outfile << (i + pnode->delay - 1) << " x" << cnt << "," << i << " - L <= 0" << endl;
 		cnt++;
 	}
 	cout << "Time frame and upper latency constraints generated." << endl;
@@ -709,7 +691,7 @@ void graph::generateRCSILP(ofstream& outfile)
 	// Resource constraints
 	cnt = 0;
 	for (cnt = 0; cnt < vertex; ++cnt)
-		for (int i = axap[cnt].first; i <= axap[cnt].second + adjlist[cnt]->delay - 1; ++i)
+		for (int i = adjlist[cnt]->asap; i <= adjlist[cnt]->alap + adjlist[cnt]->delay - 1; ++i)
 			// cout << i << " " << adjlist[cnt]->type << endl;
 			rowResource[i][mapResourceType(adjlist[cnt]->type)].push_back(cnt); // push delay
 	// cout << "Critical path delay: " << ConstrainedLatency << endl;
@@ -736,13 +718,13 @@ void graph::generateRCSILP(ofstream& outfile)
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 		for (auto psucc = (*pnode)->succ.cbegin(); psucc != (*pnode)->succ.cend(); ++psucc)
 		{
-			for (int i = axap[(*pnode)->num].first; i <= axap[(*pnode)->num].second; ++i)
+			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
 				outfile << i << " x" << (*pnode)->num << ","
-						<< i << (i == axap[(*pnode)->num].second ? "" : " + ");
+						<< i << (i == (*pnode)->alap ? "" : " + ");
 			outfile << " - ";
-			for (int i = axap[(*psucc)->num].first; i <= axap[(*psucc)->num].second; ++i)
+			for (int i = (*psucc)->asap; i <= (*psucc)->alap; ++i)
 				outfile << i << " x" << (*psucc)->num << ","
-						<< i << (i == axap[(*psucc)->num].second ? "" : " - ");
+						<< i << (i == (*psucc)->alap ? "" : " - ");
 			outfile << " <= -" << (*pnode)->delay << endl;
 		}
 	cout << "Precedence constraints generated." << endl;
@@ -750,7 +732,7 @@ void graph::generateRCSILP(ofstream& outfile)
 	// Bounds NO VARIABLES RHS!
 	outfile << "Bounds" << endl;
 	for (int i = 0; i < vertex; ++i)
-		for (int j = axap[i].first; j <= axap[i].second; ++j)
+		for (int j = adjlist[i]->asap; j <= adjlist[i]->alap; ++j)
 			// outfile << "x" << i << "," << j << " >= 0" <<endl;
 			outfile << "0 <= x" << i << "," << j << " <= 1" <<endl;
 	outfile << "L >= 1" << endl;
@@ -759,7 +741,7 @@ void graph::generateRCSILP(ofstream& outfile)
 	// Generals
 	outfile << "Generals" << endl;
 	for (int i = 0; i < vertex; ++i)
-		for (int j = axap[i].first; j <= axap[i].second; ++j)
+		for (int j = adjlist[i]->asap; j <= adjlist[i]->alap; ++j)
 			outfile << "x" << i << "," << j << "\n";
 	outfile << "L" << endl;
 	cout << "Generals generated." << endl;

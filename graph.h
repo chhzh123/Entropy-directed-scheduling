@@ -10,6 +10,8 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
+#define MAXINT 0x3f3f3f3f
+
 struct VNode
 {
 	int num;
@@ -25,8 +27,39 @@ struct VNode
 	// the nodes are stored in a adjcent list
 	std::vector<VNode*> pred;
 	std::vector<VNode*> succ;
+	// ASAP & ALAP value
+	int asap = 1;
+	int alap = MAXINT;
+	// length of original time frame
+	int length = 0;
+	// final results
+	int cstep = 1;
 	VNode(int _num,std::string _name,std::string _type,int _delay = 1):
 		num(_num),name(_name),type(_type),delay(_delay){};
+	inline void setASAP(int _asap)
+	{
+		asap = std::max(asap,_asap);
+	}
+	inline void setALAP(int _alap)
+	{
+		alap = std::min(alap,_alap);
+	}
+	inline void setLength() // this function should be called as soon as topo sorting has been implemented
+	{
+		length = alap - asap + 1;
+	}
+	void schedule(int step)
+	{
+		cstep = step;
+		for (auto pnode = succ.cbegin(); pnode != succ.cend(); ++pnode) // updown behavior
+			(*pnode)->setASAP(step + delay);
+	}
+	void scheduleBackward(int step)
+	{
+		cstep = step;
+		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode) // updown behavior
+			(*pnode)->setALAP(step - (*pnode)->delay);
+	}
 };
 
 class graph
@@ -82,8 +115,8 @@ private:
 
 	// scheduling
 	void placeCriticalPath();
-	bool scheduleNodeStep(VNode* node,int step);
-	bool scheduleNodeStepResource(VNode* node,int step);
+	bool scheduleNodeStep(VNode* node,int step,int mode);
+	bool scheduleNodeStepResource(VNode* node,int step,int mode);
 
 	// output
 	void countResource();
@@ -100,22 +133,17 @@ private:
 
 	// Use adjacent list to store the graph
 	std::vector<VNode*> adjlist;
-	// mark for DFS-based topological sorting and scheduled operations
+	// mark for DFS-based topological sorting and list scheduling
 	std::vector<int> mark;
 	// topological ordering
 	std::vector<VNode*> order;
 	// ordering without operations on critical path
 	std::vector<VNode*> edsOrder;
 
-	// ASAP & ALAP value
-	std::vector<std::pair<int,int>> axap;
 	// N_r
 	std::map<std::string,int> nr;
 	// N_r(t)
 	std::vector<std::map<std::string,int>> nrt;
-
-	// final results
-	std::map<int,int> schedule;
 
 	// variables used for generating ILP
 	std::vector<std::vector<int>> ilp;
