@@ -19,6 +19,7 @@ using namespace std;
 // argv[1] dot file num
 // argv[2] EDS mode: 0 common      1 reverse     2 resource-constrained
 //					 3 LS for RCS  4 ILP for TCS 5 ILP for RCS
+// ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[3] topo mode: 0 DFS 1 Kahn
 // argv[4] latency factor (LC)
 
@@ -94,9 +95,10 @@ int main(int argc,char *argv[])
 
 	// initial the graph
 	graph gp(infile);
-	vector<int> MODE;
-	MODE.push_back(stoi(string(argv[2]))); // EDS mode
-	MODE.push_back(stoi(string(argv[3]))); // topo mode
+	vector<int> MODE = {0,0};
+	MODE[0] = stoi(string(argv[2])); // EDS mode
+	if (MODE[0] < 3)
+		MODE[1] = stoi(string(argv[3])); // topo mode
 	gp.setMODE(MODE);
 	switch (MODE[0])
 	{

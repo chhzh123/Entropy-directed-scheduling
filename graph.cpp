@@ -66,7 +66,7 @@ graph::graph(ifstream& infile)
 		if (!addEdge(arc[1],arc[2]))
 			cout << "Add edge wrong!" << endl;
 	} while (getline(infile,str) && str.size() > 1);
-	cout << "Parse dot file successfully!\n" << endl;
+	cout << "Parsed dot file successfully!\n" << endl;
 	initialize();
 }
 
@@ -194,7 +194,7 @@ void graph::topologicalSortingDFS()
 void graph::topologicalSortingKahn()
 {
 	cout << "Begin topological sorting (Kahn)..." << endl;
-	order.clear();
+	// -------- DFS part --------
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
 		if ((*pnode)->succ.empty() && !mark[(*pnode)->num]) // out-degree = 0
 			dfsASAP(*pnode);
@@ -202,6 +202,8 @@ void graph::topologicalSortingKahn()
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // alap
 		if ((*pnode)->pred.empty() && !mark[(*pnode)->num]) // in-degree = 0
 			dfsALAP(*pnode);
+	// --------------------------
+	order.clear();
 	vector<VNode*> temp;
 	setDegrees();
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
@@ -213,7 +215,7 @@ void graph::topologicalSortingKahn()
 		for (auto pnode = temp[0]->succ.cbegin(); pnode != temp[0]->succ.cend(); ++pnode)
 		{
 			(*pnode)->tempIncoming--;
-			if ((*pnode)->incoming == 0)
+			if ((*pnode)->tempIncoming == 0)
 				temp.push_back(*pnode);
 		}
 		temp.erase(temp.begin());
@@ -557,7 +559,7 @@ void graph::mainScheduling()
 	countResource();
 }
 
-// generated in CPLEX form
+// generated ILP in CPLEX form
 void graph::generateTCSILP(ofstream& outfile)
 {
 	topologicalSortingDFS();
