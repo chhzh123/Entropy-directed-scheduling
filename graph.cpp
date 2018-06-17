@@ -70,7 +70,7 @@ graph::graph(ifstream& infile)
 	initialize();
 }
 
-void graph::addVertex(string name,string type)
+void graph::addVertex(const string name,const string type)
 {
 	int delay = 1;
 	// set MUL delay
@@ -88,7 +88,7 @@ void graph::addVertex(string name,string type)
 	}
 }
 
-bool graph::addEdge(string vFrom,string vTo)
+bool graph::addEdge(const string vFrom,const string vTo)
 {
 	VNode* vf = findVertex(vFrom);
 	VNode* vt = findVertex(vTo);
@@ -102,7 +102,7 @@ bool graph::addEdge(string vFrom,string vTo)
 	return true;
 }
 
-VNode* graph::findVertex(string name)
+VNode* graph::findVertex(const string name) const
 {
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 		if ((*pnode)->name == name)
@@ -110,7 +110,7 @@ VNode* graph::findVertex(string name)
 	return nullptr;
 }
 
-void graph::printAdjlist()
+void graph::printAdjlist() const
 {
 	cout << "Start printing adjlist..." << endl;
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
@@ -123,7 +123,7 @@ void graph::printAdjlist()
 	cout << "Done!" << endl;
 }
 
-string graph::mapResourceType(string type)
+string graph::mapResourceType(const string type) const
 {
 	// return "ALL";
 	if (type == "mul" || type == "MUL" || type == "div" || type == "DIV")
@@ -142,7 +142,7 @@ void graph::setDegrees()
 		(*pnode)->tempIncoming = (*pnode)->incoming = (*pnode)->pred.size();
 }
 
-void graph::dfsASAP(VNode* node)
+void graph::dfsASAP(VNode* const& node)
 {
 	if (mark[node->num])
 		return;
@@ -162,7 +162,7 @@ void graph::dfsASAP(VNode* node)
 	order.push_back(node);
 }
 
-void graph::dfsALAP(VNode* node) // different from asap
+void graph::dfsALAP(VNode* const& node) // different from asap
 {
 	if (mark[node->num])
 		return;
@@ -224,7 +224,7 @@ void graph::topologicalSortingKahn()
 	clearMark();
 }
 
-bool graph::scheduleNodeStep(VNode* node,int step,int mode = 0)
+bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
 {
 	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
 	{
@@ -242,7 +242,7 @@ bool graph::scheduleNodeStep(VNode* node,int step,int mode = 0)
 	return true;
 }
 
-bool graph::scheduleNodeStepResource(VNode* node,int step,int mode = 0)
+bool graph::scheduleNodeStepResource(VNode* const& node,int step,int mode = 0)
 {
 	for (int i = step; i < step + node->delay; ++i)
 		nrt[i][mapResourceType(node->type)]++;
@@ -506,13 +506,49 @@ double graph::calForce(int a,int b,int na,int nb,const vector<double>& DG,int de
 	for (int i = na; i <= nb+delay-1; ++i)
 		sum += DG[i];
 	res += sum/(double)(nb-na+1);
-	// res += (double)(nb-na)/(double)(3*(nb-na+1)); // look-ahead: temp_DG[i]=DG[i]+x(i)/3 => (h-1)^2/(3h^2)+\sum 1/(3h^2)=(h-1)/(3h)
+	res += (double)(nb-na)/(double)(3*(nb-na+1)); // look-ahead: temp_DG[i]=DG[i]+x(i)/3 => (h-1)^2/(3h^2)+\sum 1/(3h^2)=(h-1)/(3h)
 	sum = 0;
 	for (int i = a; i <= b+delay-1; ++i)
 		sum += DG[i];
 	res -= sum/(double)(b-a+1);
-	// res -= (double)(b-a)/(double)(3*(b-a+1)); // look-ahead
+	res -= (double)(b-a)/(double)(3*(b-a+1)); // look-ahead
 	return res;
+}
+
+double graph::calSuccForce(VNode* const& v,int cstep,const map<string,vector<double>>& DG) const
+{
+	double f = 0;
+	for (auto pnode = v->succ.cbegin(); pnode != v->succ.cend(); ++pnode)
+		if (mapResourceType((*pnode)->type) == mapResourceType(v->type) && (*pnode)->asap <= cstep && (*pnode)->alap >= cstep) // type should be same
+		{
+			f += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,(*pnode)->alap,
+					DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+			if (cstep + 1 == (*pnode)->alap) // recursion
+			{
+				f += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,cstep+1,DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+				f += calSuccForce((*pnode),cstep+1,DG);
+				f += calPredForce((*pnode),cstep+1,DG);
+			}
+		}
+	return f;
+}
+
+double graph::calPredForce(VNode* const& v,int cstep,const map<string,vector<double>>& DG) const
+{
+	double f = 0;
+	for (auto pnode = v->pred.cbegin(); pnode != v->pred.cend(); ++pnode)
+		if (mapResourceType((*pnode)->type) == mapResourceType(v->type) && (*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
+		{
+			f += calForce((*pnode)->asap,(*pnode)->alap,(*pnode)->asap,cstep-1,
+					DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+			if (cstep - 1 == (*pnode)->asap)
+			{
+				f += calForce((*pnode)->asap,(*pnode)->alap,cstep-1,cstep-1,DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+				f += calSuccForce((*pnode),cstep-1,DG);
+				f += calPredForce((*pnode),cstep-1,DG);
+			}
+		}
+	return f;
 }
 
 void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
@@ -542,7 +578,6 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 	while (numScheduledOp < vertex)
 	{
 		cstep++;
-		cout << cstep << endl;
 		// extend maximum latency
 		if (cstep > ConstrainedLatency)
 			for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
@@ -580,28 +615,15 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 		std::sort(readyList.begin(),readyList.end(),
 				[this,cstep,&DG](VNode* const& v1, VNode* const& v2) // lambda
 				{
-					double f1,f2,sum = 0;
 					// original force
-					f1 = calForce(v1->asap,v1->alap,cstep,cstep,DG.at(mapResourceType(v1->type)),v1->delay); // cannot use [], which is non-const
+					double f1 = calForce(v1->asap,v1->alap,cstep,cstep,DG.at(mapResourceType(v1->type)),v1->delay); // cannot use [], which is non-const
 					// successor force
-					for (auto pnode = v1->succ.cbegin(); pnode != v1->succ.cend(); ++pnode)
-						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
-							f1 += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,(*pnode)->alap,
-									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					f1 += calSuccForce(v1,cstep,DG);
 					// predecessor force
-					for (auto pnode = v1->pred.cbegin(); pnode != v1->pred.cend(); ++pnode)
-						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
-							f1 += calForce((*pnode)->asap,(*pnode)->alap,(*pnode)->asap,cstep-1,
-									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
-					f2 = calForce(v2->asap,v2->alap,cstep,cstep,DG.at(mapResourceType(v2->type)),v2->delay);
-					for (auto pnode = v2->succ.cbegin(); pnode != v2->succ.cend(); ++pnode)
-						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
-							f2 += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,(*pnode)->alap,
-									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
-					for (auto pnode = v2->pred.cbegin(); pnode != v2->pred.cend(); ++pnode)
-						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
-							f1 += calForce((*pnode)->asap,(*pnode)->alap,(*pnode)->asap,cstep-1,
-									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					f1 += calPredForce(v1,cstep,DG);
+					double f2 = calForce(v2->asap,v2->alap,cstep,cstep,DG.at(mapResourceType(v2->type)),v2->delay);
+					f2 += calSuccForce(v2,cstep,DG);
+					f2 += calPredForce(v2,cstep,DG);
 					return (f1 > f2);
 				});
 
@@ -636,18 +658,18 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::countResource()
+void graph::countResource() const
 {
 	for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
 	{
 		cout << ptype->first << ": ";
 		int res = 0;
 		for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
-			res = max(res,nrt[i][mapResourceType(ptype->first)]);
+			res = max(res,nrt[i].at(mapResourceType(ptype->first)));
 		cout << res << endl;
 		// if (ptype->first == "MUL" || ptype->first == "mul")
 			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
-				cout << "Step " << i << ": " << nrt[i][mapResourceType(ptype->first)] << endl;
+				cout << "Step " << i << ": " << nrt[i].at(mapResourceType(ptype->first)) << endl;
 	}
 }
 

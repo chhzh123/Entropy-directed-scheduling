@@ -71,7 +71,7 @@ public:
 	~graph();
 
 	// output
-	void printAdjlist();
+	void printAdjlist() const;
 	void mainScheduling();
 
 	// EDS starting from the front
@@ -102,25 +102,27 @@ private:
 	void initialize();
 	void clearMark();
 	void setDegrees(); // in-degree or out-degree
-	void addVertex(std::string name,std::string type);
-	bool addEdge(std::string vFrom,std::string vTo);
-	VNode* findVertex(std::string name);
-	inline std::string mapResourceType(std::string type);
+	void addVertex(const std::string name,const std::string type);
+	bool addEdge(const std::string vFrom,const std::string vTo);
+	VNode* findVertex(const std::string name) const;
+	inline std::string mapResourceType(const std::string type) const;
 
 	// preparation
 	void topologicalSortingDFS();
 	void topologicalSortingKahn();
-	void dfsASAP(VNode* node);
-	void dfsALAP(VNode* node);
+	void dfsASAP(VNode* const& node);
+	void dfsALAP(VNode* const& node);
 
 	// scheduling
 	void placeCriticalPath();
-	bool scheduleNodeStep(VNode* node,int step,int mode);
-	bool scheduleNodeStepResource(VNode* node,int step,int mode);
+	bool scheduleNodeStep(VNode* const& node,int step,int mode);
+	bool scheduleNodeStepResource(VNode* const& node,int step,int mode);
 	double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
+	double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
+	double calSuccForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
 
 	// output
-	void countResource();
+	void countResource() const;
 	
 	int vertex = 0;
 	int edge = 0;
