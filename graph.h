@@ -33,7 +33,7 @@ struct VNode
 	// length of original time frame
 	int length = 0;
 	// final results
-	int cstep = 1;
+	int cstep = 0;
 	VNode(int _num,std::string _name,std::string _type,int _delay = 1):
 		num(_num),name(_name),type(_type),delay(_delay){};
 	inline void setASAP(int _asap)
@@ -79,16 +79,16 @@ public:
 	// EDS starting from the last
 	void EDSrev();
 	// EDS for resource-constrained scheduling problems
-	void RCEDS();
+	void RC_EDS();
 
 	// List scheduling for resource-constrained problems
-	void RCLS();
+	void RC_LS();
 	// Force-directed scheduling for resource-constrained problems
-	void FDS(){};
+	void RC_FDS();
 
 	// ILP formulation
-	void generateRCSILP(std::ofstream& outfile);
-	void generateTCSILP(std::ofstream& outfile);
+	void generateRC_ILP(std::ofstream& outfile);
+	void generateTC_ILP(std::ofstream& outfile);
 
 	// set basic parameters
 	inline void setLC(double _LC) { LC = _LC; };
@@ -117,6 +117,7 @@ private:
 	void placeCriticalPath();
 	bool scheduleNodeStep(VNode* node,int step,int mode);
 	bool scheduleNodeStepResource(VNode* node,int step,int mode);
+	double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
 
 	// output
 	void countResource();

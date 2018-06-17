@@ -372,7 +372,7 @@ void graph::EDSrev()
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::RCEDS() // ResourceConstrained
+void graph::RC_EDS() // ResourceConstrained
 {
 	cout << "Begin EDS resource-constrained scheduling...\n" << endl;
 	watch.restart();
@@ -427,7 +427,7 @@ void graph::RCEDS() // ResourceConstrained
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::RCLS() // Resource-constrained List Scheduling
+void graph::RC_LS() // Resource-constrained List Scheduling
 {
 	cout << "Begin resource-constrained list scheduling (LS)...\n" << endl;
 	watch.restart();
@@ -450,7 +450,6 @@ void graph::RCLS() // Resource-constrained List Scheduling
 		}
 	nrt.push_back(temp); // nrt[0]
 
-	// NO nrt.push_back! NO placeCriticalPath!
 	cout << "Begin placing operations..." << endl;
 	int cstep = 0;
 	vector<VNode*> readyList;
@@ -459,16 +458,19 @@ void graph::RCLS() // Resource-constrained List Scheduling
 	while (numScheduledOp < vertex)
 	{
 		cstep++;
+		// determine ready operations in c-step
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 			if (mark[(*pnode)->num] == 0 && (*pnode)->tempIncoming == 0 && (*pnode)->asap <= cstep) // in-degree = 0
 			{
 				readyList.push_back(*pnode);
 				mark[(*pnode)->num] = 1; // have been pushed into readyList
 			}
+		// sort the readyList by priority function (mobility)
 		std::sort(readyList.begin(),readyList.end(),
 				[](VNode* const& v1, VNode* const& v2) // lambda
 				// { return ((v1->alap - v1->asap) < (v2->alap - v2->asap); });
 				{ return ((v1->length) < (v2->length)); });
+		// test if the operations in readyList can be placed in this cstep
 		int i = 0;
 		while (i < readyList.size())
 		{
@@ -498,6 +500,142 @@ void graph::RCLS() // Resource-constrained List Scheduling
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
+double graph::calForce(int a,int b,int na,int nb,const vector<double>& DG,int delay) const
+{
+	double res = 0, sum = 0;
+	for (int i = na; i <= nb+delay-1; ++i)
+		sum += DG[i];
+	res += sum/(double)(nb-na+1);
+	// res += (double)(nb-na)/(double)(3*(nb-na+1)); // look-ahead: temp_DG[i]=DG[i]+x(i)/3 => (h-1)^2/(3h^2)+\sum 1/(3h^2)=(h-1)/(3h)
+	sum = 0;
+	for (int i = a; i <= b+delay-1; ++i)
+		sum += DG[i];
+	res -= sum/(double)(b-a+1);
+	// res -= (double)(b-a)/(double)(3*(b-a+1)); // look-ahead
+	return res;
+}
+
+void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
+{
+	cout << "Begin resource-constrained force-directed scheduling (FDS)...\n" << endl;
+	watch.restart();
+	topologicalSortingDFS();
+	// initialize N_r(t)
+	map<string,int> temp,maxNr;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		if (pnr->first == "mul" || pnr->first == "MUL")
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.first;
+		}
+		else
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.second;
+		}
+	nrt.push_back(temp); // nrt[0]
+
+	cout << "Begin placing operations..." << endl;
+	int cstep = 0;
+	vector<VNode*> readyList;
+	clearMark();
+	while (numScheduledOp < vertex)
+	{
+		cstep++;
+		cout << cstep << endl;
+		// extend maximum latency
+		if (cstep > ConstrainedLatency)
+			for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+				if ((*pnode)->cstep == 0) // operations that have not been scheduled
+					(*pnode)->setALAP((*pnode)->alap+1);
+
+		// determine ready operations in cstep
+		// (i.e. ops whose time frame intersects the current cstep)
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+		{
+			int flag = 1;
+			for (auto ppred = (*pnode)->pred.cbegin(); ppred != (*pnode)->pred.cend(); ++ppred)
+				if ((*ppred)->cstep == 0)
+					flag = 0;
+			if (mark[(*pnode)->num] == 0 && (*pnode)->asap <= cstep && flag == 1)
+			{
+				readyList.push_back(*pnode);
+				mark[(*pnode)->num] = 1; // have been pushed into readyList
+			}
+		}
+
+		// build distribution graph
+		map<string,vector<double>> DG;// type step dg
+		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		{
+			vector<double> temp(max(cstep,cdepth),0);
+			DG[mapResourceType(pnr->first)] = temp;
+		}
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
+				for (int d = 0; d < (*pnode)->delay; ++d)
+					DG[mapResourceType((*pnode)->type)][i+d] += 1/(double)((*pnode)->length);
+
+		// sort the readyList by priority function (force) in decresing order
+		std::sort(readyList.begin(),readyList.end(),
+				[this,cstep,&DG](VNode* const& v1, VNode* const& v2) // lambda
+				{
+					double f1,f2,sum = 0;
+					// original force
+					f1 = calForce(v1->asap,v1->alap,cstep,cstep,DG.at(mapResourceType(v1->type)),v1->delay); // cannot use [], which is non-const
+					// successor force
+					for (auto pnode = v1->succ.cbegin(); pnode != v1->succ.cend(); ++pnode)
+						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
+							f1 += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,(*pnode)->alap,
+									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					// predecessor force
+					for (auto pnode = v1->pred.cbegin(); pnode != v1->pred.cend(); ++pnode)
+						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
+							f1 += calForce((*pnode)->asap,(*pnode)->alap,(*pnode)->asap,cstep-1,
+									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					f2 = calForce(v2->asap,v2->alap,cstep,cstep,DG.at(mapResourceType(v2->type)),v2->delay);
+					for (auto pnode = v2->succ.cbegin(); pnode != v2->succ.cend(); ++pnode)
+						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
+							f2 += calForce((*pnode)->asap,(*pnode)->alap,cstep+1,(*pnode)->alap,
+									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					for (auto pnode = v2->pred.cbegin(); pnode != v2->pred.cend(); ++pnode)
+						if ((*pnode)->asap <= cstep && (*pnode)->alap >= cstep)
+							f1 += calForce((*pnode)->asap,(*pnode)->alap,(*pnode)->asap,cstep-1,
+									DG.at(mapResourceType((*pnode)->type)),(*pnode)->delay);
+					return (f1 > f2);
+				});
+
+		// test if the operations in readyList can be placed in this cstep
+		int i = 0;
+		while (i < readyList.size())
+		{
+			// cout << readyList[i]->num+1 << " " << readyList[i]->asap << " " << readyList[i]->alap << endl;
+			int flag = 1;
+			for (int d = 1; d <= readyList[i]->delay; ++d)
+			{
+				if (cstep+d-1 >= nrt.size())
+					nrt.push_back(temp); // important!
+				if (nrt[cstep+d-1][mapResourceType(readyList[i]->type)]+1 > maxNr[mapResourceType(readyList[i]->type)])
+					flag = 0;
+			}
+			if (flag == 1)
+			{
+				scheduleNodeStepResource(readyList[i],cstep);
+				readyList[i]->setASAP(cstep); // update time frame
+				readyList[i]->setALAP(cstep);
+				readyList[i]->setLength();
+				readyList.erase(readyList.begin()+i);
+				i--;
+			}
+			i++;
+		}
+	}
+	watch.stop();
+	cout << "Placing operations done!\n" << endl;
+	cout << "Finish force-directed scheduling!\n" << endl;
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
 void graph::countResource()
 {
 	for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
@@ -519,8 +657,9 @@ void graph::mainScheduling()
 	{
 		case 0: EDS();break;
 		case 1: EDSrev();break;
-		case 2: RCEDS();break;
-		case 3: RCLS();break;
+		case 2: RC_EDS();break;
+		case 3: RC_LS();break;
+		case 4: RC_FDS();break;
 	}
 	cout << "Output as follows:" << endl;
 	// cout << "Topological order:" << endl;
@@ -560,7 +699,7 @@ void graph::mainScheduling()
 }
 
 // generated ILP in CPLEX form
-void graph::generateTCSILP(ofstream& outfile)
+void graph::generateTC_ILP(ofstream& outfile)
 {
 	topologicalSortingDFS();
 	cout << "Time frame:" << endl;
@@ -660,7 +799,7 @@ void graph::generateTCSILP(ofstream& outfile)
 }
 
 // generated in CPLEX form
-void graph::generateRCSILP(ofstream& outfile)
+void graph::generateRC_ILP(ofstream& outfile)
 {
 	topologicalSortingDFS();
 	cout << "Time frame:" << endl;

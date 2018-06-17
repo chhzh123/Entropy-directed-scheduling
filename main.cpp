@@ -17,8 +17,8 @@ using namespace std;
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] dot file num
-// argv[2] EDS mode: 0 common      1 reverse     2 resource-constrained
-//					 3 LS for RCS  4 ILP for TCS 5 ILP for RCS
+// argv[2] EDS mode: 0 common      1 reverse      2 resource-constrained
+//					 3 LS for RCS  4 FDS for RCS  5 ILP for TCS 6 ILP for RCS
 // ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[3] topo mode: 0 DFS 1 Kahn
 // argv[4] latency factor (LC)
@@ -107,20 +107,21 @@ int main(int argc,char *argv[])
 				gp.mainScheduling();
 				break;
 		case 2: // resource-constrained
-		case 3: gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
+		case 3:
+		case 4: gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
 				gp.mainScheduling();
 				break;
-		case 4:{
+		case 5:{
 					double lc = stod(string(argv[4]));
 					gp.setLC(lc);
 					ofstream outfile(dot_file[file_num]+"_"+to_string(lc)+".lp");
-					gp.generateTCSILP(outfile);
+					gp.generateTC_ILP(outfile);
 					outfile.close();
 					break;
 				}
-		case 5:{
+		case 6:{
 					ofstream outfile(dot_file[file_num]+".lp");
-					gp.generateRCSILP(outfile);
+					gp.generateRC_ILP(outfile);
 					outfile.close();
 					break;
 				}
