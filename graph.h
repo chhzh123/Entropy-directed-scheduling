@@ -10,7 +10,11 @@
 #ifndef GRAPH_H
 #define GRAPH_H
 
-#define MAXINT 0x3f3f3f3f
+#include<vector>
+#include<map>
+#include<algorithm>
+
+#define MAXINT_ 0x3f3f3f3f
 
 struct VNode
 {
@@ -29,7 +33,7 @@ struct VNode
 	std::vector<VNode*> succ;
 	// ASAP & ALAP value
 	int asap = 1;
-	int alap = MAXINT;
+	int alap = MAXINT_;
 	// length of original time frame
 	int length = 0;
 	// final results
@@ -57,7 +61,18 @@ struct VNode
 	void scheduleBackward(int step)
 	{
 		cstep = step;
-		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode) // updown behavior
+		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode)
+			(*pnode)->setALAP(step - (*pnode)->delay);
+	}
+	void scheduleAll(int step) // mainly for FDS
+	{
+		cstep = step;
+		setASAP(step);
+		setALAP(step);
+		setLength();
+		for (auto pnode = succ.cbegin(); pnode != succ.cend(); ++pnode)
+			(*pnode)->setASAP(step + delay);
+		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode)
 			(*pnode)->setALAP(step - (*pnode)->delay);
 	}
 };
@@ -75,14 +90,16 @@ public:
 	void mainScheduling();
 
 	// EDS starting from the front
-	void EDS();
+	void TC_EDS();
 	// EDS starting from the last
-	void EDSrev();
+	void TC_EDS_rev();
 	// EDS for resource-constrained scheduling problems
 	void RC_EDS();
 
 	// List scheduling for resource-constrained problems
 	void RC_LS();
+	// Force-directed scheduling for time-constrained problems
+	void TC_FDS();
 	// Force-directed scheduling for resource-constrained problems
 	void RC_FDS();
 
@@ -163,16 +180,5 @@ private:
 	// MODE[1]: 0 DFS    1 Kahn
 	std::vector<int> MODE;
 };
-
-// for std::string split
-std::vector<std::string> split(const std::string& input, const std::string& regex) // split the string
-{
-	// passing -1 as the submatch index parameter performs splitting
-	std::regex re(regex);
-	std::sregex_token_iterator
-		first{input.begin(), input.end(), re, -1},
-		last;
-	return {first, last};
-}
 
 #endif // GRAPH_H

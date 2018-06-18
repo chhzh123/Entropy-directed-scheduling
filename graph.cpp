@@ -25,6 +25,8 @@ using namespace std;
 
 // for high-accuracy time counting
 stop_watch watch;
+// for string split
+std::vector<std::string> split(const std::string& input, const std::string& regex);
 
 graph::~graph()
 {
@@ -151,13 +153,21 @@ void graph::dfsASAP(VNode* const& node)
 		{
 			dfsASAP(*pprec);
 			node->setASAP((*pprec)->asap + (*pprec)->delay);
-			node->setLength();
 		}
 	cdepth = max(node->asap + node->delay - 1,cdepth); // critical path delay
-	if (MODE[0] == 0 || MODE[0] == 1 || MODE[0] == 4)
-		setConstrainedLatency(int(cdepth*LC)); // TCS
-	else
-		setConstrainedLatency(MAXINT); // RCS
+	switch (MODE[0])
+	{
+		case 0: // TCS
+		case 1:
+		case 2:
+		case 3:
+		case 12: // FDS
+		case 20: // ILP
+		case 21: setConstrainedLatency(int(cdepth*LC));break;
+		case 10: // RCS
+		case 11: setConstrainedLatency(MAXINT_);break;
+		default: break;
+	}
 	mark[node->num] = 1;
 	order.push_back(node);
 }
@@ -172,8 +182,8 @@ void graph::dfsALAP(VNode* const& node) // different from asap
 	{
 		dfsALAP(*psucc);
 		node->setALAP((*psucc)->alap - node->delay);
-		node->setLength();
 	}
+	node->setLength();
 	mark[node->num] = 1;
 }
 
@@ -233,10 +243,13 @@ bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
 	}
 	for (int i = step; i < step + node->delay; ++i)
 		nrt[i][mapResourceType(node->type)]++;
-	if (mode == 0)
-		node->schedule(step);
-	else
-		node->scheduleBackward(step);
+	switch (mode)
+	{
+		case 0: node->schedule(step);break;
+		case 1: node->scheduleBackward(step);break;
+		case 2: node->scheduleAll(step);break;
+		default: cout << "Invaild schedule mode!" << endl;return false;
+	}
 	maxLatency = max(maxLatency,step + node->delay - 1);
 	numScheduledOp++;
 	return true;
@@ -246,10 +259,13 @@ bool graph::scheduleNodeStepResource(VNode* const& node,int step,int mode = 0)
 {
 	for (int i = step; i < step + node->delay; ++i)
 		nrt[i][mapResourceType(node->type)]++;
-	if (mode == 0)
-		node->schedule(step);
-	else
-		node->scheduleBackward(step);
+	 switch (mode)
+	 {
+	 	case 0: node->schedule(step);break;
+	 	case 1: node->scheduleBackward(step);break;
+	 	case 2: node->scheduleAll(step);break;
+	 	default: cout << "Invaild schedule mode!" << endl;return false;
+	 }
 	maxLatency = max(maxLatency,step + node->delay - 1); // important to minus 1
 	numScheduledOp++;
 	return true;
@@ -266,7 +282,7 @@ void graph::placeCriticalPath()
 	cout << "Placing critical path done!" << endl;
 }
 
-void graph::EDS()
+void graph::TC_EDS()
 {
 	cout << "Begin EDS scheduling...\n" << endl;
 	watch.restart();
@@ -291,7 +307,7 @@ void graph::EDS()
 	{
 		int a = (*pnode)->asap, b = (*pnode)->alap;
 		// because of topo order, it's pred must have been scheduled
-		int minnrt = MAXINT, minstep = a;
+		int minnrt = MAXINT_, minstep = a;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = a; t <= b; ++t)
 		{
@@ -318,7 +334,7 @@ void graph::EDS()
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::EDSrev()
+void graph::TC_EDS_rev()
 {
 	cout << "Begin EDS scheduling...\n" << endl;
 	watch.restart();
@@ -345,7 +361,7 @@ void graph::EDSrev()
 		if (!(*pnode)->succ.empty()) // because of topo order, it's pred must have been scheduled
 			for (auto psucc = (*pnode)->succ.cbegin(); psucc != (*pnode)->succ.cend(); ++psucc)
 				b = min(b,(*psucc)->cstep - (*pnode)->delay);
-		int minnrt = MAXINT, minstep = b;
+		int minnrt = MAXINT_, minstep = b;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = b; t >= a; --t) // --?
 		{
@@ -372,9 +388,66 @@ void graph::EDSrev()
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::RC_EDS() // ResourceConstrained
+void graph::TC_FDS() // Time-constrained Force-Directed Scheduling
 {
-	cout << "Begin EDS resource-constrained scheduling...\n" << endl;
+	cout << "Begin time-constrained force-directed scheduling (FDS)...\n" << endl;
+	watch.restart();
+	topologicalSortingDFS();
+	// initialize N_r(t)
+	map<string,int> temp;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		temp[pnr->first] = 0;
+	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
+		nrt.push_back(temp);
+
+	cout << "Begin placing operations..." << endl;
+	clearMark();
+	while (numScheduledOp < vertex)
+	{
+		double minF = MAXINT_;
+		int bestop = 0, beststep = 1;
+
+		// build distribution graph
+		map<string,vector<double>> DG;// type step dg
+		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		{
+			vector<double> temp(ConstrainedLatency + MUL_DELAY,0);
+			DG[mapResourceType(pnr->first)] = temp;
+		}
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
+				for (int d = 0; d < (*pnode)->delay; ++d)
+					DG[mapResourceType((*pnode)->type)][i + d] += 1 / (double)((*pnode)->length);
+
+		// find the op and step with lowest force
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+		{
+			if ((*pnode)->cstep != 0)
+				continue;
+			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
+			{
+				double f = calForce((*pnode)->asap, (*pnode)->alap, i, i, DG.at(mapResourceType((*pnode)->type)), (*pnode)->delay);
+				f += calSuccForce(*pnode, i, DG);
+				f += calPredForce(*pnode, i, DG);
+				if (f < minF)
+				{
+					minF = f;
+					bestop = (*pnode)->num;
+					beststep = i;
+				}
+			}
+		}
+		scheduleNodeStep(adjlist[bestop],beststep,2);
+	}
+	watch.stop();
+	cout << "Placing operations done!\n" << endl;
+	cout << "Finish force-directed scheduling!\n" << endl;
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
+void graph::RC_EDS() // Resource-constrained EDS
+{
+	cout << "Begin resource-constrained entropy-directed scheduling (EDS)...\n" << endl;
 	watch.restart();
 	if (MODE[1] == 0)
 		topologicalSortingDFS();
@@ -423,7 +496,7 @@ void graph::RC_EDS() // ResourceConstrained
 	}
 	watch.stop();
 	cout << "Placing operations done!\n" << endl;
-	cout << "Finish EDS scheduling!\n" << endl;
+	cout << "Finish entropy-directed scheduling!\n" << endl;
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
@@ -500,8 +573,10 @@ void graph::RC_LS() // Resource-constrained List Scheduling
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-double graph::calForce(int a,int b,int na,int nb,const vector<double>& DG,int delay) const
+double graph::calForce(int a,int b,int na,int nb,const vector<double>& DG,int delay) const // [a,b]->[na,nb]
 {
+	if ((na > nb) || (a > b))
+		return 0;
 	double res = 0, sum = 0;
 	for (int i = na; i <= nb+delay-1; ++i)
 		sum += DG[i];
@@ -603,7 +678,7 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 		map<string,vector<double>> DG;// type step dg
 		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
 		{
-			vector<double> temp(max(cstep,cdepth),0);
+			vector<double> temp(max(cstep,cdepth) + MUL_DELAY,0);
 			DG[mapResourceType(pnr->first)] = temp;
 		}
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
@@ -642,10 +717,7 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 			}
 			if (flag == 1)
 			{
-				scheduleNodeStepResource(readyList[i],cstep);
-				readyList[i]->setASAP(cstep); // update time frame
-				readyList[i]->setALAP(cstep);
-				readyList[i]->setLength();
+				scheduleNodeStepResource(readyList[i],cstep,2); // update time frame
 				readyList.erase(readyList.begin()+i);
 				i--;
 			}
@@ -677,11 +749,14 @@ void graph::mainScheduling()
 {
 	switch (MODE[0])
 	{
-		case 0: EDS();break;
-		case 1: EDSrev();break;
-		case 2: RC_EDS();break;
-		case 3: RC_LS();break;
-		case 4: RC_FDS();break;
+		case 0: TC_EDS();break;
+		case 1: TC_EDS_rev();break;
+		case 2: cout << "Under development!" << endl;return;
+		case 3: TC_FDS();break;
+		case 10: RC_EDS();break;
+		case 11: RC_LS();break;
+		case 12: RC_FDS();break;
+		default: cout << "Invaild mode!" << endl;return;
 	}
 	cout << "Output as follows:" << endl;
 	// cout << "Topological order:" << endl;
@@ -910,4 +985,14 @@ void graph::generateRC_ILP(ofstream& outfile)
 	cout << "Generals generated." << endl;
 	outfile << "End" << endl;
 	cout << "Finished ILP generation!" << endl;
+}
+
+std::vector<std::string> split(const std::string& input, const std::string& regex) // split the string
+{
+	// passing -1 as the submatch index parameter performs splitting
+	std::regex re(regex);
+	std::sregex_token_iterator
+		first{ input.begin(), input.end(), re, -1 },
+		last;
+	return { first, last };
 }

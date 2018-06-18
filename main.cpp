@@ -11,17 +11,21 @@
 #include <fstream>
 #include <string>
 
+#include "watch.h"
+#include "graph.h"
 #include "graph.cpp"
 using namespace std;
 
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] dot file num
-// argv[2] EDS mode: 0 common      1 reverse      2 resource-constrained
-//					 3 LS for RCS  4 FDS for RCS  5 ILP for TCS 6 ILP for RCS
+// argv[2] scheduling mode:
+// 			time-constrained(TC):		0  EDS		1 EDS(reverse)		2 LS 		3 FDS
+//			resource-constrained(RC):	10 EDS 		11 LS 		12 FDS
+//			ILP:						20 TC_ILP 	21 RC_ILP
 // ****** If the arguments below are not needed, you needn't type anything more. ******
-// argv[3] topo mode: 0 DFS 1 Kahn
-// argv[4] latency factor (LC)
+// argv[3] latency factor (LC)
+// argv[4] topo mode: 0 DFS 1 Kahn
 
 // Benchmarks for our experiments can be downloaded at
 // https://www.ece.ucsb.edu/EXPRESS/benchmark/
@@ -91,35 +95,47 @@ int main(int argc,char *argv[])
 	string path = "./Benchmarks/";
 	int file_num = stoi(string(argv[1]));
 	ifstream infile(path + dot_file[file_num] + ".dot");
-	cout << "Read in dot file successfully!\n" << endl;
+	if (infile)
+		cout << "Read in dot file successfully!\n" << endl;
+	else
+	{
+		cout << "Error: No such files!" << endl;
+		return;
+	}
 
 	// initial the graph
 	graph gp(infile);
 	vector<int> MODE = {0,0};
 	MODE[0] = stoi(string(argv[2])); // EDS mode
-	if (MODE[0] < 3)
-		MODE[1] = stoi(string(argv[3])); // topo mode
+	if (MODE[0] == 0 || MODE[0] == 1)
+		MODE[1] = stoi(string(argv[4])); // topo mode
 	gp.setMODE(MODE);
 	switch (MODE[0])
 	{
-		case 0: // time-constrained
-		case 1: gp.setLC(stod(string(argv[4])));
+		// time-constrained
+		case 0: // EDS
+		case 1: // EDS_rev
+		case 2: // LS
+		case 3: // FDS
+				gp.setLC(stod(string(argv[3])));
 				gp.mainScheduling();
 				break;
-		case 2: // resource-constrained
-		case 3:
-		case 4: gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
+		// resource-constrained
+		case 10: // EDS
+		case 11: // LS
+		case 12: // FDS
+				gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
 				gp.mainScheduling();
 				break;
-		case 5:{
-					double lc = stod(string(argv[4]));
+		case 20:{ // TC_ILP
+					double lc = stod(string(argv[3]));
 					gp.setLC(lc);
 					ofstream outfile(dot_file[file_num]+"_"+to_string(lc)+".lp");
 					gp.generateTC_ILP(outfile);
 					outfile.close();
 					break;
 				}
-		case 6:{
+		case 21:{ // RC_ILP
 					ofstream outfile(dot_file[file_num]+".lp");
 					gp.generateRC_ILP(outfile);
 					outfile.close();
@@ -129,6 +145,7 @@ int main(int argc,char *argv[])
 	}
 
 	infile.close();
+	// getchar();
 	return 0;
 }
 
