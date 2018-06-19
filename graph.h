@@ -103,6 +103,9 @@ public:
 	// Force-directed scheduling for resource-constrained problems
 	void RC_FDS();
 
+	// test
+	bool testFeasibleSchedule() const;
+
 	// ILP formulation
 	void generateRC_ILP(std::ofstream& outfile);
 	void generateTC_ILP(std::ofstream& outfile);

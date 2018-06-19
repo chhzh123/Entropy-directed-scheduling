@@ -100,7 +100,7 @@ int main(int argc,char *argv[])
 	else
 	{
 		cout << "Error: No such files!" << endl;
-		return;
+		return 0;
 	}
 
 	// initial the graph

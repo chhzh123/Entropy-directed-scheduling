@@ -758,6 +758,13 @@ void graph::mainScheduling()
 		case 12: RC_FDS();break;
 		default: cout << "Invaild mode!" << endl;return;
 	}
+	if (!testFeasibleSchedule())
+	{
+		cout << "\nInfeasible schedule!" << endl;
+		return;
+	}
+	else
+		cout << "\nThe schedule is valid!" << endl;
 	cout << "Output as follows:" << endl;
 	// cout << "Topological order:" << endl;
 	// for (auto pnode : order)
@@ -793,6 +800,23 @@ void graph::mainScheduling()
 				"ALU: " << MAXRESOURCE.second << endl;
 	cout << "Resource used:" << endl;
 	countResource();
+}
+
+bool graph::testFeasibleSchedule() const
+{
+	int flag = 0;
+	for (int i = 0; i < vertex; ++i)
+		for (auto pnode = adjlist[i]->succ.cbegin(); pnode != adjlist[i]->succ.cend(); ++pnode)
+			if (adjlist[i]->cstep + adjlist[i]->delay - 1 >= (*pnode)->cstep)
+			{
+				flag = 1;
+				cout << "Schedule conflicts with Node " << adjlist[i]->name << " (" << adjlist[i]->num+1 << ") "
+					 << "and Node " << (*pnode)->name << " (" << (*pnode)->num << ")." << endl;
+			}
+	if (flag == 1)
+		return false;
+	else
+		return true;
 }
 
 // generated ILP in CPLEX form
