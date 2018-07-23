@@ -2,15 +2,17 @@
 // Author: Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
-// This is the implement of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
-// Our work has been contributed to ICCD 2018.
+// This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
+// Our work has been contributed to ICCD 2018 and TCAD.
 
 // This head file contains the implement of high-accuracy time counter.
 
 #ifndef WATCH_H
 #define WATCH_H
 
+// #define NOMINMAX
 #include <windows.h>
+// #undef NOMINMAX
 
 class stop_watch
 {

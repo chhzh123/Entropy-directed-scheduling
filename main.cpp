@@ -2,30 +2,18 @@
 // Author: Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
-// This is the implement of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
-// Our work has been contributed to ICCD 2018.
+// This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
+// Our work has been contributed to ICCD 2018 and TCAD.
 
-// This file is the main function of our EDS.
+// This file is the main function of EDS.
 
 #include <iostream>
 #include <fstream>
 #include <string>
 
-#include "watch.h"
 #include "graph.h"
 #include "graph.cpp"
 using namespace std;
-
-// set these argv from cmd
-// argv[0] default file path: needn't give
-// argv[1] dot file num
-// argv[2] scheduling mode:
-// 			time-constrained(TC):		0  EDS		1 EDS(reverse)		2 LS 		3 FDS
-//			resource-constrained(RC):	10 EDS 		11 LS 		12 FDS
-//			ILP:						20 TC_ILP 	21 RC_ILP
-// ****** If the arguments below are not needed, you needn't type anything more. ******
-// argv[3] latency factor (LC)
-// argv[4] topo mode: 0 DFS 1 Kahn
 
 // Benchmarks for our experiments can be downloaded at
 // https://www.ece.ucsb.edu/EXPRESS/benchmark/
@@ -52,6 +40,9 @@ const string dot_file[21] = {
 	"smooth_color_z_triangle_dfg__31"/*c*/,
 	"invert_matrix_general_dfg__3"/*c*/
 };
+
+// if you need to load from other path, please modify here
+string path = "./Benchmarks/";
 
 // default constraints for resource-constrained scheduling
 // these fine-tuned constraints are first presented in the paper below
@@ -87,65 +78,128 @@ const int RC[21][2] = {
 	{15,11}/*20*/
 };
 
+void interactive()
+{
+	while (1)
+	{
+		cout << "Please enter the file num." << endl;
+		for (int i = 1; i < 21; ++i)
+			cout << i << ": " << dot_file[i] << endl;
+		int file_num;
+		cin >> file_num;
+		cout << "Begin reading dot file..." << endl;
+		ifstream infile(path + dot_file[file_num] + ".dot");
+		if (infile)
+			cout << "Read in dot file successfully!\n" << endl;
+		else
+		{
+			cout << "Error: No such files!" << endl;
+			return;
+		}
+	
+		graph gp;
+		vector<int> MODE;
+		cout << "Please enter the scheduling mode:" << endl;
+		cout << "Time-constrained(TC):\t0  EDS\t1  EDS(reverse)\t2  ILP" << endl;
+		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP" << endl;
+		int mode;
+		cin >> mode;
+		MODE.push_back(mode);
+		if (MODE[0] < 10)
+		{
+			double lc;
+			cout << "Please enter the constrained latency." << endl;
+			cin >> lc;
+			gp.setLC(lc);
+		}
+		else
+			gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
+
+		cout << "Please enter the scheduling order:" << endl;
+		cout << "0. Top-down\t 1.Bottom-up" << endl;
+		cin >> mode;
+		MODE.push_back(mode);
+		gp.setMODE(MODE);
+		gp.readFile(infile);
+
+		if (MODE[0] == 2)
+		{
+			ofstream outfile(dot_file[file_num]+"_"+to_string(gp.getLC())+".lp");
+			gp.generateTC_ILP(outfile);
+			outfile.close();
+		}
+		else if (MODE[0] == 12)
+		{
+			ofstream outfile(dot_file[file_num]+".lp");
+			gp.generateRC_ILP(outfile);
+			outfile.close();
+		}
+		else
+			gp.mainScheduling();
+	
+		infile.close();
+	}
+}
+
+// set these argv from cmd
+// argv[0] default file path: needn't give
+// argv[1] scheduling mode:
+// 			time-constrained(TC):		0  EDS       1  EDS(reverse)    2  ILP
+//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)       12 ILP
+// ****** If the arguments below are not needed, you needn't type anything more. ******
+// argv[2] latency factor (LC) or scheduling order
+//                                0 top-down  1 bottom-up
+void commandline(char *argv[])
+{
+	vector<int> MODE;
+	MODE.push_back(stoi(string(argv[1]))); // scheduling mode
+	if (MODE[0] < 10)
+		MODE.push_back(stoi(string(argv[3])));
+	else
+		MODE.push_back(stoi(string(argv[2])));
+
+	for (int file_num = 1; file_num < 21; ++file_num)
+	{
+		ifstream infile(path + dot_file[file_num] + ".dot");
+		if (!infile)
+		{
+			cout << "Error: No such files!" << endl;
+			return;
+		}
+
+		graph gp;
+		gp.setMODE(MODE);
+		gp.setPRINT(0);
+		gp.readFile(infile);
+		if (MODE[0] >= 10)
+			gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
+		else
+			gp.setLC(stod(string(argv[2])));
+		if (MODE[0] == 2)
+		{
+			ofstream outfile(dot_file[file_num]+"_"+to_string(gp.getLC())+".lp");
+			gp.generateTC_ILP(outfile);
+			outfile.close();
+		}
+		else if (MODE[0] == 12)
+		{
+			ofstream outfile(dot_file[file_num]+".lp");
+			gp.generateRC_ILP(outfile);
+			outfile.close();
+		}
+		else
+			gp.mainScheduling(1);
+
+		infile.close();
+	}
+}
+
 int main(int argc,char *argv[])
 {
-
-	cout << "Begin reading dot file..." << endl;
-	// if you need to load from other path, please modify here
-	string path = "./Benchmarks/";
-	int file_num = stoi(string(argv[1]));
-	ifstream infile(path + dot_file[file_num] + ".dot");
-	if (infile)
-		cout << "Read in dot file successfully!\n" << endl;
-	else
-	{
-		cout << "Error: No such files!" << endl;
-		return 0;
-	}
-
-	// initial the graph
-	graph gp(infile);
-	vector<int> MODE = {0,0};
-	MODE[0] = stoi(string(argv[2])); // EDS mode
-	if (MODE[0] == 0 || MODE[0] == 1)
-		MODE[1] = stoi(string(argv[4])); // topo mode
-	gp.setMODE(MODE);
-	switch (MODE[0])
-	{
-		// time-constrained
-		case 0: // EDS
-		case 1: // EDS_rev
-		case 2: // LS
-		case 3: // FDS
-				gp.setLC(stod(string(argv[3])));
-				gp.mainScheduling();
-				break;
-		// resource-constrained
-		case 10: // EDS
-		case 11: // LS
-		case 12: // FDS
-				gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
-				gp.mainScheduling();
-				break;
-		case 20:{ // TC_ILP
-					double lc = stod(string(argv[3]));
-					gp.setLC(lc);
-					ofstream outfile(dot_file[file_num]+"_"+to_string(lc)+".lp");
-					gp.generateTC_ILP(outfile);
-					outfile.close();
-					break;
-				}
-		case 21:{ // RC_ILP
-					ofstream outfile(dot_file[file_num]+".lp");
-					gp.generateRC_ILP(outfile);
-					outfile.close();
-					break;
-				}
-		default: break;
-	}
-
-	infile.close();
-	// getchar();
+	if (argc == 1) // interactive
+		interactive();
+	else // read from cmd
+		commandline(argv);
 	return 0;
 }
 

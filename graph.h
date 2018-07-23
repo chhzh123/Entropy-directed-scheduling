@@ -2,8 +2,8 @@
 // Author: Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
-// This is the implement of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
-// Our work has been contributed to ICCD 2018.
+// This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
+// Our work has been contributed to ICCD 2018 and TCAD.
 
 // This head file contains the basic graph class.
 
@@ -81,27 +81,26 @@ class graph
 {
 public:
 	graph() = default;
-	// read from dot file
-	graph(std::ifstream& infile);
 	~graph();
+
+	// read from dot file
+	void readFile(std::ifstream& infile);
 
 	// output
 	void printAdjlist() const;
-	void mainScheduling();
+	void mainScheduling(int mode = 0);
 
 	// EDS starting from the front
-	void TC_EDS();
+	void TC_EDS(int sorting_mode = 0);
 	// EDS starting from the last
-	void TC_EDS_rev();
+	void TC_EDS_rev(int sorting_mode = 0);
 	// EDS for resource-constrained scheduling problems
-	void RC_EDS();
+	void RC_EDS(int sorting_mode = 0);
 
-	// List scheduling for resource-constrained problems
-	void RC_LS();
-	// Force-directed scheduling for time-constrained problems
-	void TC_FDS();
-	// Force-directed scheduling for resource-constrained problems
-	void RC_FDS();
+	// // Force-directed scheduling for time-constrained problems
+	// void TC_FDS();
+	// // Force-directed scheduling for resource-constrained problems
+	// void RC_FDS();
 
 	// test
 	bool testFeasibleSchedule() const;
@@ -116,6 +115,8 @@ public:
 	inline void setMODE(std::vector<int> _MODE) { MODE = _MODE; };
 	inline void setMAXRESOURCE(int mul,int alu)
 		{ MAXRESOURCE.first = mul; MAXRESOURCE.second = alu; };
+	inline void setPRINT(int mode) { if (mode == 0) PRINT = false; };
+	inline double getLC() const {return LC;};
 
 private:
 	// initialization
@@ -137,12 +138,15 @@ private:
 	void placeCriticalPath();
 	bool scheduleNodeStep(VNode* const& node,int step,int mode);
 	bool scheduleNodeStepResource(VNode* const& node,int step,int mode);
-	double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
-	double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
-	double calSuccForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
+	// double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
+	// double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
+	// double calSuccForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
 
 	// output
+	void standardOutput() const;
+	void simplifiedOutput() const;
 	void countResource() const;
+	inline void print(const std::string str) const;
 	
 	int vertex = 0;
 	int edge = 0;
@@ -178,10 +182,8 @@ private:
 	// for resource-constrained scheduling
 	std::pair<int,int> MAXRESOURCE;
 
-	// MODE[0]: 0 EDS            1 EDSrev        2 EDSResourceConstrained
-	//			3 LS for RCS     4 ILP for TCS   5 ILP for RCS
-	// MODE[1]: 0 DFS    1 Kahn
 	std::vector<int> MODE;
+	bool PRINT = true;
 };
 
 #endif // GRAPH_H
