@@ -88,6 +88,7 @@ void graph::addVertex(const string name,const string type)
 	{
 		typeNum++;
 		nr[mapResourceType(type)] = 1;
+		maxNrt[mapResourceType(type)] = 0;
 	}
 }
 
@@ -242,7 +243,10 @@ bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
 		return false;
 	}
 	for (int i = step; i < step + node->delay; ++i)
+	{
 		nrt[i][mapResourceType(node->type)]++;
+		maxNrt[mapResourceType(node->type)] = max(maxNrt[mapResourceType(node->type)],nrt[i][mapResourceType(node->type)]);
+	}
 	switch (mode)
 	{
 		case 0: node->schedule(step);break;
@@ -258,14 +262,17 @@ bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
 bool graph::scheduleNodeStepResource(VNode* const& node,int step,int mode = 0)
 {
 	for (int i = step; i < step + node->delay; ++i)
+	{
 		nrt[i][mapResourceType(node->type)]++;
-	 switch (mode)
-	 {
-	 	case 0: node->schedule(step);break;
-	 	case 1: node->scheduleBackward(step);break;
-	 	case 2: node->scheduleAll(step);break;
-	 	default: cout << "Invaild schedule mode!" << endl;return false;
-	 }
+		maxNrt[mapResourceType(node->type)] = max(maxNrt[mapResourceType(node->type)],nrt[i][mapResourceType(node->type)]);
+	}
+	switch (mode)
+	{
+		case 0: node->schedule(step);break;
+		case 1: node->scheduleBackward(step);break;
+		case 2: node->scheduleAll(step);break;
+		default: cout << "Invaild schedule mode!" << endl;return false;
+	}
 	maxLatency = max(maxLatency,step + node->delay - 1); // important to minus 1
 	numScheduledOp++;
 	return true;
@@ -307,11 +314,11 @@ void graph::TC_EDS(int sorting_mode)
 	{
 		int a = (*pnode)->asap, b = (*pnode)->alap;
 		// because of topo order, it's pred must have been scheduled
-		int minnrt = MAXINT_, minstep = a;
+		int minnrt = MAXINT_, minstep = a, maxnrt = 0, maxstep = a, flag = 0;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = a; t <= b; ++t)
 		{
-			int sumNrt = 0;
+			int sumNrt = 0,cnt = 0;
 			for (int d = 1; d <= (*pnode)->delay; ++d)
 			{
 				string tempType = mapResourceType((*pnode)->type);
@@ -319,14 +326,26 @@ void graph::TC_EDS(int sorting_mode)
 				// 	sumNrt += 5*nrt[t+d-1]["MUL"] + nrt[t+d-1]["ALU"]; // cost
 				// else
 					sumNrt += nrt[t+d-1][tempType];
+				if (nrt[t+d-1][tempType] + 1 <= maxNrt[mapResourceType((*pnode)->type)])
+					cnt++;
 			}
-			if (sumNrt <= minnrt) // "equal" place backwards
+			if (cnt == (*pnode)->delay)
+				flag = 1;
+			if (sumNrt < minnrt) // leave freedom to remained ops
 			{
 				minnrt = sumNrt;
 				minstep = t;
 			}
+			if (flag == 0 && sumNrt > maxnrt)
+			{
+				maxnrt = sumNrt;
+				maxstep = t;
+			}
 		}
-		scheduleNodeStep(*pnode,minstep);
+		if (flag == 1)
+			scheduleNodeStep(*pnode,minstep);
+		else
+			scheduleNodeStep(*pnode,maxstep);
 	}
 	watch.stop();
 	print("Placing other nodes done!\n");
@@ -374,7 +393,7 @@ void graph::TC_EDS_rev(int sorting_mode)
 				// else
 					sumNrt += nrt[t+d-1][tempType];
 			}
-			if (sumNrt < minnrt) // "equal" place backwards
+			if (sumNrt < minnrt)
 			{
 				minnrt = sumNrt;
 				minstep = t;
@@ -447,11 +466,7 @@ void graph::countResource() const
 {
 	for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
 	{
-		cout << ptype->first << ": ";
-		int res = 0;
-		for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
-			res = max(res,nrt[i].at(mapResourceType(ptype->first)));
-		cout << res << endl;
+		cout << ptype->first << ": " << maxNrt.at(ptype->first) << endl;
 		if (PRINT)
 		// if (ptype->first == "MUL" || ptype->first == "mul")
 			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
@@ -485,10 +500,10 @@ void graph::standardOutput() const
 	else
 		cout << "\nThe schedule is valid!" << endl;
 	cout << "Output as follows:" << endl;
-	// cout << "Topological order:" << endl;
-	// for (auto pnode : order)
-	// 	cout << pnode->name << " ";
-	// cout << "\n" << endl;
+	cout << "Topological order:" << endl;
+	for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
+		cout << (*pnode)->num+1 << ":" << (*pnode)->name << ((pnode-order.cbegin()+1)%5==0 ? "\n" : "   \t");
+	cout << endl;
 	// cout << "Time frame:" << endl;
 	// int cnt = 1;
 	// for (auto pnode : adjlist)
@@ -513,7 +528,7 @@ void graph::standardOutput() const
 		cout << endl;
 	}
 	cout << "Total latency: " << maxLatency << endl;
-	if (MODE[0] < 10)
+	if (MODE[0] >= 10)
 		cout << "Constrained resource:\n"
 				"MUL: " << MAXRESOURCE.first << endl <<
 				"ALU: " << MAXRESOURCE.second << endl;

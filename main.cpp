@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <stdlib.h>
 
 #include "graph.h"
 #include "graph.cpp"
@@ -82,7 +83,7 @@ void interactive()
 {
 	while (1)
 	{
-		cout << "Please enter the file num." << endl;
+		cout << "\nPlease enter the file num." << endl;
 		for (int i = 1; i < 21; ++i)
 			cout << i << ": " << dot_file[i] << endl;
 		int file_num;
@@ -99,7 +100,7 @@ void interactive()
 	
 		graph gp;
 		vector<int> MODE;
-		cout << "Please enter the scheduling mode:" << endl;
+		cout << "\nPlease enter the scheduling mode:" << endl;
 		cout << "Time-constrained(TC):\t0  EDS\t1  EDS(reverse)\t2  ILP" << endl;
 		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP" << endl;
 		int mode;
@@ -108,14 +109,14 @@ void interactive()
 		if (MODE[0] < 10)
 		{
 			double lc;
-			cout << "Please enter the constrained latency." << endl;
+			cout << "Please enter the latency factor." << endl;
 			cin >> lc;
 			gp.setLC(lc);
 		}
 		else
 			gp.setMAXRESOURCE(RC[file_num][0],RC[file_num][1]);
 
-		cout << "Please enter the scheduling order:" << endl;
+		cout << "\nPlease enter the scheduling order:" << endl;
 		cout << "0. Top-down\t 1.Bottom-up" << endl;
 		cin >> mode;
 		MODE.push_back(mode);
@@ -124,13 +125,23 @@ void interactive()
 
 		if (MODE[0] == 2)
 		{
-			ofstream outfile(dot_file[file_num]+"_"+to_string(gp.getLC())+".lp");
+			try{
+				system("md TC_ILP");
+			}
+			catch(...){}
+			char str[10];
+			snprintf(str,sizeof(str),"%.1f",gp.getLC());
+			ofstream outfile("./TC_ILP/"+dot_file[file_num]+"_"+string(str)+".lp");
 			gp.generateTC_ILP(outfile);
 			outfile.close();
 		}
 		else if (MODE[0] == 12)
 		{
-			ofstream outfile(dot_file[file_num]+".lp");
+			try{
+				system("md RC_ILP");
+			}
+			catch(...){}
+			ofstream outfile("./RC_ILP/"+dot_file[file_num]+".lp");
 			gp.generateRC_ILP(outfile);
 			outfile.close();
 		}
@@ -153,10 +164,16 @@ void commandline(char *argv[])
 {
 	vector<int> MODE;
 	MODE.push_back(stoi(string(argv[1]))); // scheduling mode
-	if (MODE[0] < 10)
-		MODE.push_back(stoi(string(argv[3])));
-	else
-		MODE.push_back(stoi(string(argv[2])));
+	switch (MODE[0])
+	{
+		case 0:
+		case 1: MODE.push_back(stoi(string(argv[3])));break;
+		case 10:
+		case 11: MODE.push_back(stoi(string(argv[2])));break;
+		case 2: MODE.push_back(stoi(string(argv[2])));break;
+		case 12: MODE.push_back(stoi(string(argv[1])));break;
+		default: cout << "Error: Mode wrong!" << endl;break;
+	}
 
 	for (int file_num = 1; file_num < 21; ++file_num)
 	{
@@ -177,13 +194,23 @@ void commandline(char *argv[])
 			gp.setLC(stod(string(argv[2])));
 		if (MODE[0] == 2)
 		{
-			ofstream outfile(dot_file[file_num]+"_"+to_string(gp.getLC())+".lp");
+			try{
+				system("md TC_ILP");
+			}
+			catch(...){}
+			char str[10];
+			snprintf(str,sizeof(str),"%.1f",gp.getLC());
+			ofstream outfile("./TC_ILP/"+dot_file[file_num]+"_"+string(str)+".lp");
 			gp.generateTC_ILP(outfile);
 			outfile.close();
 		}
 		else if (MODE[0] == 12)
 		{
-			ofstream outfile(dot_file[file_num]+".lp");
+			try{
+				system("md RC_ILP");
+			}
+			catch(...){}
+			ofstream outfile("./RC_ILP/"+dot_file[file_num]+".lp");
 			gp.generateRC_ILP(outfile);
 			outfile.close();
 		}

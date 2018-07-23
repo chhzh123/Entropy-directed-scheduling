@@ -1,0 +1,240 @@
+read arf_1.0.lp
+opt
+write arf_1.0.sol
+
+read arf_1.5.lp
+opt
+write arf_1.5.sol
+
+read arf_2.0.lp
+opt
+write arf_2.0.sol
+
+read collapse_pyr_dfg__113_1.0.lp
+opt
+write collapse_pyr_dfg__113_1.0.sol
+
+read collapse_pyr_dfg__113_1.5.lp
+opt
+write collapse_pyr_dfg__113_1.5.sol
+
+read collapse_pyr_dfg__113_2.0.lp
+opt
+write collapse_pyr_dfg__113_2.0.sol
+
+read cosine1_1.0.lp
+opt
+write cosine1_1.0.sol
+
+read cosine1_1.5.lp
+opt
+write cosine1_1.5.sol
+
+read cosine1_2.0.lp
+opt
+write cosine1_2.0.sol
+
+read cosine2_1.0.lp
+opt
+write cosine2_1.0.sol
+
+read cosine2_1.5.lp
+opt
+write cosine2_1.5.sol
+
+read cosine2_2.0.lp
+opt
+write cosine2_2.0.sol
+
+read ewf_1.0.lp
+opt
+write ewf_1.0.sol
+
+read ewf_1.5.lp
+opt
+write ewf_1.5.sol
+
+read ewf_2.0.lp
+opt
+write ewf_2.0.sol
+
+read feedback_points_dfg__7_1.0.lp
+opt
+write feedback_points_dfg__7_1.0.sol
+
+read feedback_points_dfg__7_1.5.lp
+opt
+write feedback_points_dfg__7_1.5.sol
+
+read feedback_points_dfg__7_2.0.lp
+opt
+write feedback_points_dfg__7_2.0.sol
+
+read fir1_1.0.lp
+opt
+write fir1_1.0.sol
+
+read fir1_1.5.lp
+opt
+write fir1_1.5.sol
+
+read fir1_2.0.lp
+opt
+write fir1_2.0.sol
+
+read fir2_1.0.lp
+opt
+write fir2_1.0.sol
+
+read fir2_1.5.lp
+opt
+write fir2_1.5.sol
+
+read fir2_2.0.lp
+opt
+write fir2_2.0.sol
+
+read h2v2_smooth_downsample_dfg__6_1.0.lp
+opt
+write h2v2_smooth_downsample_dfg__6_1.0.sol
+
+read h2v2_smooth_downsample_dfg__6_1.5.lp
+opt
+write h2v2_smooth_downsample_dfg__6_1.5.sol
+
+read h2v2_smooth_downsample_dfg__6_2.0.lp
+opt
+write h2v2_smooth_downsample_dfg__6_2.0.sol
+
+read hal_1.0.lp
+opt
+write hal_1.0.sol
+
+read hal_1.5.lp
+opt
+write hal_1.5.sol
+
+read hal_2.0.lp
+opt
+write hal_2.0.sol
+
+read horner_bezier_surf_dfg__12_1.0.lp
+opt
+write horner_bezier_surf_dfg__12_1.0.sol
+
+read horner_bezier_surf_dfg__12_1.5.lp
+opt
+write horner_bezier_surf_dfg__12_1.5.sol
+
+read horner_bezier_surf_dfg__12_2.0.lp
+opt
+write horner_bezier_surf_dfg__12_2.0.sol
+
+read idctcol_dfg__3_1.0.lp
+opt
+write idctcol_dfg__3_1.0.sol
+
+read idctcol_dfg__3_1.5.lp
+opt
+write idctcol_dfg__3_1.5.sol
+
+read idctcol_dfg__3_2.0.lp
+opt
+write idctcol_dfg__3_2.0.sol
+
+read interpolate_aux_dfg__12_1.0.lp
+opt
+write interpolate_aux_dfg__12_1.0.sol
+
+read interpolate_aux_dfg__12_1.5.lp
+opt
+write interpolate_aux_dfg__12_1.5.sol
+
+read interpolate_aux_dfg__12_2.0.lp
+opt
+write interpolate_aux_dfg__12_2.0.sol
+
+read invert_matrix_general_dfg__3_1.0.lp
+opt
+write invert_matrix_general_dfg__3_1.0.sol
+
+read invert_matrix_general_dfg__3_1.5.lp
+opt
+write invert_matrix_general_dfg__3_1.5.sol
+
+read invert_matrix_general_dfg__3_2.0.lp
+opt
+write invert_matrix_general_dfg__3_2.0.sol
+
+read jpeg_fdct_islow_dfg__6_1.0.lp
+opt
+write jpeg_fdct_islow_dfg__6_1.0.sol
+
+read jpeg_fdct_islow_dfg__6_1.5.lp
+opt
+write jpeg_fdct_islow_dfg__6_1.5.sol
+
+read jpeg_fdct_islow_dfg__6_2.0.lp
+opt
+write jpeg_fdct_islow_dfg__6_2.0.sol
+
+read jpeg_idct_ifast_dfg__5_1.0.lp
+opt
+write jpeg_idct_ifast_dfg__5_1.0.sol
+
+read jpeg_idct_ifast_dfg__5_1.5.lp
+opt
+write jpeg_idct_ifast_dfg__5_1.5.sol
+
+read jpeg_idct_ifast_dfg__5_2.0.lp
+opt
+write jpeg_idct_ifast_dfg__5_2.0.sol
+
+read matmul_dfg__3_1.0.lp
+opt
+write matmul_dfg__3_1.0.sol
+
+read matmul_dfg__3_1.5.lp
+opt
+write matmul_dfg__3_1.5.sol
+
+read matmul_dfg__3_2.0.lp
+opt
+write matmul_dfg__3_2.0.sol
+
+read motion_vectors_dfg__7_1.0.lp
+opt
+write motion_vectors_dfg__7_1.0.sol
+
+read motion_vectors_dfg__7_1.5.lp
+opt
+write motion_vectors_dfg__7_1.5.sol
+
+read motion_vectors_dfg__7_2.0.lp
+opt
+write motion_vectors_dfg__7_2.0.sol
+
+read smooth_color_z_triangle_dfg__31_1.0.lp
+opt
+write smooth_color_z_triangle_dfg__31_1.0.sol
+
+read smooth_color_z_triangle_dfg__31_1.5.lp
+opt
+write smooth_color_z_triangle_dfg__31_1.5.sol
+
+read smooth_color_z_triangle_dfg__31_2.0.lp
+opt
+write smooth_color_z_triangle_dfg__31_2.0.sol
+
+read write_bmp_header_dfg__7_1.0.lp
+opt
+write write_bmp_header_dfg__7_1.0.sol
+
+read write_bmp_header_dfg__7_1.5.lp
+opt
+write write_bmp_header_dfg__7_1.5.sol
+
+read write_bmp_header_dfg__7_2.0.lp
+opt
+write write_bmp_header_dfg__7_2.0.sol
+

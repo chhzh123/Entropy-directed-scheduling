@@ -171,6 +171,8 @@ private:
 	std::map<std::string,int> nr;
 	// N_r(t)
 	std::vector<std::map<std::string,int>> nrt;
+	// max N_r(t)
+	std::map<std::string,int> maxNrt;
 
 	// variables used for generating ILP
 	std::vector<std::vector<int>> ilp;

@@ -1,0 +1,80 @@
+read arf.lp
+opt
+write arf.sol
+
+read collapse_pyr_dfg__113.lp
+opt
+write collapse_pyr_dfg__113.sol
+
+read cosine1.lp
+opt
+write cosine1.sol
+
+read cosine2.lp
+opt
+write cosine2.sol
+
+read ewf.lp
+opt
+write ewf.sol
+
+read feedback_points_dfg__7.lp
+opt
+write feedback_points_dfg__7.sol
+
+read fir1.lp
+opt
+write fir1.sol
+
+read fir2.lp
+opt
+write fir2.sol
+
+read h2v2_smooth_downsample_dfg__6.lp
+opt
+write h2v2_smooth_downsample_dfg__6.sol
+
+read hal.lp
+opt
+write hal.sol
+
+read horner_bezier_surf_dfg__12.lp
+opt
+write horner_bezier_surf_dfg__12.sol
+
+read idctcol_dfg__3.lp
+opt
+write idctcol_dfg__3.sol
+
+read interpolate_aux_dfg__12.lp
+opt
+write interpolate_aux_dfg__12.sol
+
+read invert_matrix_general_dfg__3.lp
+opt
+write invert_matrix_general_dfg__3.sol
+
+read jpeg_fdct_islow_dfg__6.lp
+opt
+write jpeg_fdct_islow_dfg__6.sol
+
+read jpeg_idct_ifast_dfg__5.lp
+opt
+write jpeg_idct_ifast_dfg__5.sol
+
+read matmul_dfg__3.lp
+opt
+write matmul_dfg__3.sol
+
+read motion_vectors_dfg__7.lp
+opt
+write motion_vectors_dfg__7.sol
+
+read smooth_color_z_triangle_dfg__31.lp
+opt
+write smooth_color_z_triangle_dfg__31.sol
+
+read write_bmp_header_dfg__7.lp
+opt
+write write_bmp_header_dfg__7.sol
+
