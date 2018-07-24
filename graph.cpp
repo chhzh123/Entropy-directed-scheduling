@@ -353,60 +353,6 @@ void graph::TC_EDS(int sorting_mode)
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::TC_EDS_rev(int sorting_mode)
-{
-	print("Begin EDS scheduling...\n");
-	watch.restart();
-	if (sorting_mode == 0)
-		topologicalSortingDFS();
-	else
-		topologicalSortingKahn();
-	// initialize N_r(t)
-	map<string,int> temp;
-	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
-		temp[pnr->first] = 0;
-	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
-		nrt.push_back(temp);
-
-	// placing operations on critical path
-	placeCriticalPath();
-	print("Critical path time delay: " + to_string(cdepth));
-
-	// main part of scheduling
-	print("Begin placing other nodes...");
-	for (auto pnode = edsOrder.crbegin(); pnode != edsOrder.crend(); ++pnode)
-	{
-		int a = (*pnode)->asap, b = (*pnode)->alap;
-		if (!(*pnode)->succ.empty()) // because of topo order, it's pred must have been scheduled
-			for (auto psucc = (*pnode)->succ.cbegin(); psucc != (*pnode)->succ.cend(); ++psucc)
-				b = min(b,(*psucc)->cstep - (*pnode)->delay);
-		int minnrt = MAXINT_, minstep = b;
-		// cout << (*pnode)->name << " " << a << " " << b << endl;
-		for (int t = b; t >= a; --t) // --?
-		{
-			int sumNrt = 0;
-			for (int d = 1; d <= (*pnode)->delay; ++d)
-			{
-				string tempType = mapResourceType((*pnode)->type);
-				// if (tempType == "MUL" || tempType == "ALU")
-				// 	sumNrt += 5*nrt[t+d-1]["MUL"] + nrt[t+d-1]["ALU"]; // cost
-				// else
-					sumNrt += nrt[t+d-1][tempType];
-			}
-			if (sumNrt < minnrt)
-			{
-				minnrt = sumNrt;
-				minstep = t;
-			}
-		}
-		scheduleNodeStep(*pnode,minstep,1);
-	}
-	watch.stop();
-	print("Placing other nodes done!\n");
-	print("Finish EDS scheduling!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
-}
-
 void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
 {
 	print("Begin resource-constrained entropy-directed scheduling (EDS)...\n");
@@ -479,7 +425,7 @@ void graph::mainScheduling(int mode)
 	switch (MODE[0])
 	{
 		case 0: TC_EDS(0);break;
-		case 1: TC_EDS_rev(0);break;
+		case 1: TC_EDS(1);break;
 		case 10: RC_EDS(0);break;
 		case 11: RC_EDS(1);break;
 		default: cout << "Invaild mode!" << endl;return;

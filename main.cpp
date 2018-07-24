@@ -101,7 +101,7 @@ void interactive()
 		graph gp;
 		vector<int> MODE;
 		cout << "\nPlease enter the scheduling mode:" << endl;
-		cout << "Time-constrained(TC):\t0  EDS\t1  EDS(reverse)\t2  ILP" << endl;
+		cout << "Time-constrained(TC):\t0  EDS(DFS)\t1  EDS(Kahn)\t2  ILP" << endl;
 		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP" << endl;
 		int mode;
 		cin >> mode;
@@ -155,8 +155,8 @@ void interactive()
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] scheduling mode:
-// 			time-constrained(TC):		0  EDS       1  EDS(reverse)    2  ILP
-//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)       12 ILP
+// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP
+//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP
 // ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[2] latency factor (LC) or scheduling order
 //                                0 top-down  1 bottom-up

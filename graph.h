@@ -92,8 +92,6 @@ public:
 
 	// EDS starting from the front
 	void TC_EDS(int sorting_mode = 0);
-	// EDS starting from the last
-	void TC_EDS_rev(int sorting_mode = 0);
 	// EDS for resource-constrained scheduling problems
 	void RC_EDS(int sorting_mode = 0);
 
