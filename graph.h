@@ -95,10 +95,10 @@ public:
 	// EDS for resource-constrained scheduling problems
 	void RC_EDS(int sorting_mode = 0);
 
-	// // Force-directed scheduling for time-constrained problems
-	// void TC_FDS();
-	// // Force-directed scheduling for resource-constrained problems
-	// void RC_FDS();
+	// Force-directed scheduling for time-constrained problems
+	void TC_FDS();
+	// Force-directed scheduling for resource-constrained problems
+	void RC_FDS();
 
 	// test
 	bool testFeasibleSchedule() const;
@@ -136,15 +136,16 @@ private:
 	void placeCriticalPath();
 	bool scheduleNodeStep(VNode* const& node,int step,int mode);
 	bool scheduleNodeStepResource(VNode* const& node,int step,int mode);
-	// double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
-	// double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
-	// double calSuccForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
+	double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
+	double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
+	double calSuccForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;
 
 	// output
 	void standardOutput() const;
 	void simplifiedOutput() const;
 	void countResource() const;
 	inline void print(const std::string str) const;
+	void countASAP() const;
 	
 	int vertex = 0;
 	int edge = 0;

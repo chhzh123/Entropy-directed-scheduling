@@ -101,8 +101,8 @@ void interactive()
 		graph gp;
 		vector<int> MODE;
 		cout << "\nPlease enter the scheduling mode:" << endl;
-		cout << "Time-constrained(TC):\t0  EDS(DFS)\t1  EDS(Kahn)\t2  ILP" << endl;
-		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP" << endl;
+		cout << "Time-constrained(TC):\t0  EDS(DFS)\t1  EDS(Kahn)\t2  ILP\t3  FDS" << endl;
+		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP\t13 FDS" << endl;
 		int mode;
 		cin >> mode;
 		MODE.push_back(mode);
@@ -155,8 +155,8 @@ void interactive()
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] scheduling mode:
-// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP
-//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP
+// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP    3  FDS
+//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP    13 FDS
 // ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[2] latency factor (LC) or scheduling order
 //                                0 top-down  1 bottom-up
@@ -167,9 +167,11 @@ void commandline(char *argv[])
 	switch (MODE[0])
 	{
 		case 0:
-		case 1: MODE.push_back(stoi(string(argv[3])));break;
+		case 1:
+		case 3: MODE.push_back(stoi(string(argv[3])));break;
 		case 10:
-		case 11: MODE.push_back(stoi(string(argv[2])));break;
+		case 11:
+		case 13: MODE.push_back(stoi(string(argv[2])));break;
 		case 2: MODE.push_back(stoi(string(argv[2])));break;
 		case 12: MODE.push_back(stoi(string(argv[1])));break;
 		default: cout << "Error: Mode wrong!" << endl;break;
