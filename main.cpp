@@ -217,7 +217,10 @@ void commandline(char *argv[])
 			outfile.close();
 		}
 		else
+		{
+			cout << "File # " << file_num << " (" << dot_file[file_num] << ") :" <<endl;
 			gp.mainScheduling(1);
+		}
 
 		infile.close();
 	}

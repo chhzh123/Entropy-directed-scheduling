@@ -38,6 +38,7 @@ struct VNode
 	int length = 0;
 	// final results
 	int cstep = 0;
+	bool criticalPath = false;
 	VNode(int _num,std::string _name,std::string _type,int _delay = 1):
 		num(_num),name(_name),type(_type),delay(_delay){};
 	inline void setASAP(int _asap)
@@ -51,6 +52,10 @@ struct VNode
 	inline void setLength() // this function should be called as soon as topo sorting has been implemented
 	{
 		length = alap - asap + 1;
+	}
+	inline int getLength()
+	{
+		return alap - asap + 1;
 	}
 	void schedule(int step)
 	{
@@ -88,6 +93,7 @@ public:
 
 	// output
 	void printAdjlist() const;
+	void printTimeFrame() const;
 	void mainScheduling(int mode = 0);
 
 	// EDS starting from the front
@@ -146,6 +152,7 @@ private:
 	void countResource() const;
 	inline void print(const std::string str) const;
 	void countASAP() const;
+	void countASAP_RCS() const;
 	
 	int vertex = 0;
 	int edge = 0;

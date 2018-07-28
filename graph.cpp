@@ -16,6 +16,7 @@
 #include <string>
 #include <regex> // regular expression for string split
 #include <iterator>
+#include <cmath>
 
 #include "watch.h" // for high-accuracy time counting
 #include "graph.h"
@@ -123,15 +124,15 @@ VNode* graph::findVertex(const string name) const
 
 void graph::printAdjlist() const
 {
-	cout << "Start printing adjlist..." << endl;
+	cout << "Adjacent list:" << endl;
+	cout << "[ Format: node num ( node name ) : successor num ( successor name ) ]" << endl;
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 	{
-		cout << (*pnode)->num << ": ";
+		cout << (*pnode)->num+1 << "( " << (*pnode)->name << " ): ";
 		for (auto adjnode = (*pnode)->succ.cbegin(); adjnode != (*pnode)->succ.cend(); ++adjnode)
-			cout << (*adjnode)->num << " ";
+			cout << (*adjnode)->num+1 << "( " << (*adjnode)->name << " ) ";
 		cout << endl;
 	}
-	cout << "Done!" << endl;
 }
 
 string graph::mapResourceType(const string type) const
@@ -196,10 +197,12 @@ void graph::topologicalSortingDFS()
 			dfsASAP(*pnode);
 	clearMark();
 	// countASAP();
+	// countASAP_RCS();
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // alap
 		if ((*pnode)->pred.empty() && !mark[(*pnode)->num]) // in-degree = 0
 			dfsALAP(*pnode);
 	print("Topological sorting done!");
+	// printTimeFrame();
 }
 
 void graph::topologicalSortingKahn()
@@ -237,6 +240,16 @@ void graph::topologicalSortingKahn()
 
 bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
 {
+	if (MODE[0] == 3)
+	{
+		// cout << node->num+1 << " " << step << endl;
+		for (auto pnode = node->succ.cbegin(); pnode != node->succ.cend(); ++pnode)
+			if ((*pnode)->cstep == 0 && max((*pnode)->asap,step + node->delay) > (*pnode)->alap)
+				return false;
+		for (auto pnode = node->pred.cbegin(); pnode != node->pred.cend(); ++pnode)
+			if ((*pnode)->cstep == 0 && min((*pnode)->alap,step - (*pnode)->delay) < (*pnode)->asap)
+				return false;
+	}
 	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
 	{
 		cout << "Invalid schedule!" << endl;
@@ -283,7 +296,10 @@ void graph::placeCriticalPath()
 	print("Begin placing critical path...");
 	for (auto node : order)
 		if (node->asap == node->alap)
-			scheduleNodeStep(node,node->asap);
+		{
+			node->criticalPath = true;
+			scheduleNodeStep(node,node->asap,2);
+		}
 		else
 			edsOrder.push_back(node);
 	print("Placing critical path done!");
@@ -307,6 +323,7 @@ void graph::TC_EDS(int sorting_mode)
 	// placing operations on critical path
 	placeCriticalPath();
 	print("Critical path time delay: " + to_string(cdepth));
+	// cout << "Constrained latency: " << ConstrainedLatency << endl;
 
 	// main part of scheduling
 	print("Begin placing other nodes...");
@@ -314,11 +331,17 @@ void graph::TC_EDS(int sorting_mode)
 	{
 		int a = (*pnode)->asap, b = (*pnode)->alap;
 		// because of topo order, it's pred must have been scheduled
-		int minnrt = MAXINT_, minstep = a, maxnrt = 0, maxstep = a, flag = 0;
-		// cout << (*pnode)->name << " " << a << " " << b << endl;
+		double minnrt = MAXINT_;
+		int minstep = a, maxnrt = -MAXINT_, maxstep = a, flag = 0;
 		for (int t = a; t <= b; ++t)
 		{
-			int sumNrt = 0,cnt = 0;
+			double sumNrt = 0;
+			// if (maxNrt[mapResourceType((*pnode)->type)] < nr[mapResourceType((*pnode)->type)] / ConstrainedLatency)
+			// {
+			// 	minstep = a;
+			// 	// cout << (*pnode)->num+1 << " " << a << endl;
+			// 	break;
+			// }
 			for (int d = 1; d <= (*pnode)->delay; ++d)
 			{
 				string tempType = mapResourceType((*pnode)->type);
@@ -326,26 +349,22 @@ void graph::TC_EDS(int sorting_mode)
 				// 	sumNrt += 5*nrt[t+d-1]["MUL"] + nrt[t+d-1]["ALU"]; // cost
 				// else
 					sumNrt += nrt[t+d-1][tempType];
-				if (nrt[t+d-1][tempType] + 1 <= maxNrt[mapResourceType((*pnode)->type)])
-					cnt++;
+				// // remember to change minnrt to maxnrt, and let sumNrt > minnrt
+				// double oldRatio = ((double)nrt[t+d-1][tempType])/(double)nr[tempType];
+				// double newRatio = ((double)nrt[t+d-1][tempType]+1)/(double)nr[tempType];
+				// if (oldRatio != 0)
+				// 	sumNrt += -newRatio*log(newRatio) + oldRatio*log(oldRatio);
+				// else
+				// 	sumNrt += -newRatio*log(newRatio);
 			}
-			if (cnt == (*pnode)->delay)
-				flag = 1;
 			if (sumNrt < minnrt) // leave freedom to remained ops
 			{
 				minnrt = sumNrt;
 				minstep = t;
 			}
-			if (flag == 0 && sumNrt > maxnrt)
-			{
-				maxnrt = sumNrt;
-				maxstep = t;
-			}
 		}
-		if (flag != 1)
-			scheduleNodeStep(*pnode,maxstep);
-		else
-			scheduleNodeStep(*pnode,minstep);
+		// cout << (*pnode)->num+1 << " (" << (*pnode)->name << "): " << a << " " << b << " Step: " << minstep << endl;
+		scheduleNodeStep(*pnode,minstep,2);
 	}
 	watch.stop();
 	print("Placing other nodes done!\n");
@@ -443,20 +462,18 @@ void graph::standardOutput() const
 	if (!testFeasibleSchedule())
 	{
 		cout << "\nInfeasible schedule!" << endl;
-		return;
+		// return;
 	}
 	else
 		cout << "\nThe schedule is valid!" << endl;
 	cout << "Output as follows:" << endl;
+	printAdjlist();
 	cout << "Topological order:" << endl;
 	for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
 		cout << (*pnode)->num+1 << ":" << (*pnode)->name << ((pnode-order.cbegin()+1)%5==0 ? "\n" : "   \t");
 	cout << endl;
-	// cout << "Time frame:" << endl;
-	// int cnt = 1;
-	// for (auto pnode : adjlist)
-	// 	cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl; // need to be printed before scheduling
-	// cout << endl;
+	if (MODE[0] < 10)
+		printTimeFrame();
 	cout << "Final schedule:" << endl;
 	for (int i = 0; i < vertex; ++i)
 		cout << i+1 << ": " << adjlist[i]->cstep << ((i+1)%5==0 ? "\n" : "\t");
@@ -497,6 +514,7 @@ void graph::simplifiedOutput() const
 		cout << "Resource used:" << endl;
 		countResource();
 	}
+	cout << endl;
 }
 
 bool graph::testFeasibleSchedule() const
@@ -507,8 +525,8 @@ bool graph::testFeasibleSchedule() const
 			if (adjlist[i]->cstep + adjlist[i]->delay - 1 >= (*pnode)->cstep)
 			{
 				flag = 1;
-				cout << "Schedule conflicts with Node " << adjlist[i]->name << " (" << adjlist[i]->num+1 << ") "
-					 << "and Node " << (*pnode)->name << " (" << (*pnode)->num << ")." << endl;
+				cout << "Schedule conflicts with Node " << adjlist[i]->num+1 << " (" << adjlist[i]->name << ") "
+					 << "and Node " << (*pnode)->num+1 << " (" << (*pnode)->name << ")." << endl;
 			}
 	if (flag == 1)
 		return false;
@@ -726,11 +744,6 @@ std::vector<std::string> split(const std::string& input, const std::string& rege
 
 void graph::countASAP() const
 {
-	// cout << "Time frame:" << endl;
-	// int cnt = 1;
-	// for (auto pnode : adjlist)
-	// 	cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl; // need to be printed before scheduling
-	// cout << endl;
 	vector<int> countasap(cdepth+1,0);
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
 		countasap[(*pnode)->asap] += 1;
@@ -748,6 +761,53 @@ void graph::countASAP() const
 				cout << (float)i/(countasap.size()-1) << " bottom-up" << endl;
 			else
 				cout << (float)i/(countasap.size()-1) << " top-down" << endl;
+			break;
+		}
+}
+
+void graph::countASAP_RCS() const
+{
+	vector<int> countMULasap(cdepth+1,0);
+	vector<int> countALUasap(cdepth+1,0);
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
+		if (mapResourceType((*pnode)->type) == "MUL")
+			countMULasap[(*pnode)->asap] += 1;
+		else
+			countALUasap[(*pnode)->asap] += 1;
+	cout << "MUL: (";
+	for (int i = 1; i < countMULasap.size(); ++i)
+		cout << countMULasap[i] << ", ";
+	cout << ")" << endl;
+	cout << "ALU: (";
+	for (int i = 1; i < countALUasap.size(); ++i)
+		cout << countALUasap[i] << ", ";
+	cout << ")" << endl;
+	vector<int> sumMULv(cdepth+1,0);
+	vector<int> sumALUv(cdepth+1,0);
+	for (int i = 1; i < countMULasap.size(); ++i)
+	{
+		sumMULv[i] = sumMULv[i-1] + countMULasap[i];
+		sumALUv[i] = sumALUv[i-1] + countALUasap[i];
+	}
+	cout << "Total MUL:" << sumMULv[countMULasap.size()-1] << endl;
+	cout << "Total ALU:" << sumALUv[countMULasap.size()-1] << endl;
+	cout << "Total nodes: " << sumMULv[countMULasap.size()-1] + sumALUv[countMULasap.size()-1] << endl;
+	for (int i = 1; i < countMULasap.size(); ++i)
+		if (sumMULv[i] > (float)(sumMULv[countMULasap.size()-1])/2.0)
+		{
+			if (i >= (float)(countMULasap.size()-1)/2.0)
+				cout << (float)i/(countMULasap.size()-1) << " MUL bottom-up" << endl;
+			else
+				cout << (float)i/(countMULasap.size()-1) << " MUL top-down" << endl;
+			break;
+		}
+	for (int i = 1; i < countALUasap.size(); ++i)
+		if (sumALUv[i] > (float)(sumALUv[countALUasap.size()-1])/2.0)
+		{
+			if (i >= (float)(countALUasap.size()-1)/2.0)
+				cout << (float)i/(countALUasap.size()-1) << " ALU bottom-up" << endl;
+			else
+				cout << (float)i/(countALUasap.size()-1) << " ALU top-down" << endl;
 			break;
 		}
 }
@@ -834,9 +894,10 @@ void graph::TC_FDS() // Time-constrained Force-Directed Scheduling
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
 				for (int d = 0; d < (*pnode)->delay; ++d)
-					DG[mapResourceType((*pnode)->type)][i + d] += 1 / (double)((*pnode)->length);
+					DG[mapResourceType((*pnode)->type)][i + d] += 1.0 / (double)((*pnode)->getLength());
 
 		// find the op and step with lowest force
+		vector<pair<int,pair<int,int>>> fv; // force, op, step
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 		{
 			if ((*pnode)->cstep != 0)
@@ -846,15 +907,24 @@ void graph::TC_FDS() // Time-constrained Force-Directed Scheduling
 				double f = calForce((*pnode)->asap, (*pnode)->alap, i, i, DG.at(mapResourceType((*pnode)->type)), (*pnode)->delay);
 				f += calSuccForce(*pnode, i, DG);
 				f += calPredForce(*pnode, i, DG);
-				if (f < minF)
-				{
-					minF = f;
-					bestop = (*pnode)->num;
-					beststep = i;
-				}
+				pair<int,int> opstep = {(*pnode)->num,i};
+				pair<int,pair<int,int>> temp = {f,opstep};
+				fv.push_back(temp);
+				// if (f < minF)
+				// {
+				// 	minF = f;
+				// 	bestop = (*pnode)->num;
+				// 	beststep = i;
+				// }
 			}
 		}
-		scheduleNodeStep(adjlist[bestop],beststep,2);
+		std::sort(fv.begin(),fv.end(),
+				[](const pair<int,pair<int,int>>& f1, const pair<int,pair<int,int>>& f2) // lambda
+				{return f1.first < f2.first;});
+		for (auto node : fv)
+			if (scheduleNodeStep(adjlist[node.second.first],node.second.second,2))
+				break;
+		// scheduleNodeStep(adjlist[bestop],beststep,2);
 	}
 	watch.stop();
 	print("Placing operations done!\n");
@@ -920,7 +990,7 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
 			for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
 				for (int d = 0; d < (*pnode)->delay; ++d)
-					DG[mapResourceType((*pnode)->type)][i+d] += 1/(double)((*pnode)->length);
+					DG[mapResourceType((*pnode)->type)][i+d] += 1/(double)((*pnode)->getLength()); // (*pnode)->length
 
 		// sort the readyList by priority function (force) in decresing order
 		std::sort(readyList.begin(),readyList.end(),
@@ -963,4 +1033,12 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 	print("Placing operations done!\n");
 	print("Finish force-directed scheduling!\n");
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
+void graph::printTimeFrame() const // need to be printed before scheduling
+{
+	cout << "Time frame:" << endl;
+	int cnt = 1;
+	for (auto pnode : adjlist)
+		cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl;
 }
