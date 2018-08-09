@@ -401,20 +401,28 @@ void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
 	{
 		int a = (*pnode)->asap, b = (*pnode)->alap;
 		// because of topo order, it's pred must have been scheduled
-		int maxstep = a, maxnrt = 0;
+		int maxstep = a, maxnrt = -1;
 		// cout << (*pnode)->name << " " << a << " " << b << endl;
-		for (int t = a; t <= b; ++t)
+		for (int t = a; t <= max(a,maxLatency) + MUL_DELAY; ++t)
 		{
-			int flag = 1;
+			int flag = 1, sumNrt = 0;
 			for (int d = 1; d <= (*pnode)->delay; ++d)
 			{
+				string tempType = mapResourceType((*pnode)->type);
 				if (t+d-1 >= nrt.size())
 					nrt.push_back(temp); // important!
-				if (nrt[t+d-1][mapResourceType((*pnode)->type)]+1 > maxNr[mapResourceType((*pnode)->type)])
+				if (nrt[t+d-1][tempType]+1 > maxNr[tempType])
 					flag = 0;
+				sumNrt += nrt[t+d-1][tempType];
 			}
-			if (flag == 1)
+			// if (flag == 1)
+			// {
+			// 	maxstep = t;
+			// 	break;
+			// }
+			if (flag == 1 && sumNrt > maxnrt) // leave freedom to remained ops
 			{
+				maxnrt = sumNrt;
 				maxstep = t;
 				break;
 			}
