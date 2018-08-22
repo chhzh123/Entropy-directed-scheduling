@@ -294,14 +294,23 @@ bool graph::scheduleNodeStepResource(VNode* const& node,int step,int mode = 0)
 void graph::placeCriticalPath()
 {
 	print("Begin placing critical path...");
+	// int minL = MAXINT_;
+	// for (auto node : order)
+	// 	minL = min(minL,node->alap-node->asap);
 	for (auto node : order)
+	{
 		if (node->asap == node->alap)
 		{
 			node->criticalPath = true;
 			scheduleNodeStep(node,node->asap,2);
 		}
-		else
-			edsOrder.push_back(node);
+		// if (node->alap - node->asap == minL)
+		// 	node->criticalPath = true;
+		// if (node->asap == node->alap)
+		// 	scheduleNodeStep(node,node->asap,2);
+		// else
+		// 	edsOrder.push_back(node);
+	}
 	print("Placing critical path done!");
 }
 
@@ -437,7 +446,7 @@ void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
 
 void graph::countResource() const
 {
-	for (auto ptype = nr.cbegin(); ptype != nr.cend(); ++ptype)
+	for (auto ptype = nr.crbegin(); ptype != nr.crend(); ++ptype)
 	{
 		cout << ptype->first << ": " << maxNrt.at(ptype->first) << endl;
 		if (PRINT)
@@ -828,12 +837,12 @@ double graph::calForce(int a,int b,int na,int nb,const vector<double>& DG,int de
 	for (int i = na; i <= nb+delay-1; ++i)
 		sum += DG[i];
 	res += sum/(double)(nb-na+1);
-	// res += (double)(nb-na)/(double)(3*(nb-na+1)); // look-ahead: temp_DG[i]=DG[i]+x(i)/3 => (h-1)^2/(3h^2)+\sum 1/(3h^2)=(h-1)/(3h)
+	res += (double)(nb-na)/(double)(3*(nb-na+1)); // look-ahead: temp_DG[i]=DG[i]+x(i)/3 => (h-1)^2/(3h^2)+\sum 1/(3h^2)=(h-1)/(3h)
 	sum = 0;
 	for (int i = a; i <= b+delay-1; ++i)
 		sum += DG[i];
 	res -= sum/(double)(b-a+1);
-	// res -= (double)(b-a)/(double)(3*(b-a+1)); // look-ahead
+	res -= (double)(b-a)/(double)(3*(b-a+1)); // look-ahead
 	return res;
 }
 

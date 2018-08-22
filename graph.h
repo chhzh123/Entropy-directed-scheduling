@@ -72,13 +72,21 @@ struct VNode
 	void scheduleAll(int step) // mainly for FDS
 	{
 		cstep = step;
-		setASAP(step);
-		setALAP(step);
+		iterativeSetASAP(step);
+		iterativeSetALAP(step);
 		setLength();
+	}
+	void iterativeSetASAP(int step)
+	{
 		for (auto pnode = succ.cbegin(); pnode != succ.cend(); ++pnode)
-			(*pnode)->setASAP(step + delay);
+			(*pnode)->iterativeSetASAP(step + delay);
+		setASAP(step);
+	}
+	void iterativeSetALAP(int step)
+	{
 		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode)
-			(*pnode)->setALAP(step - (*pnode)->delay);
+			(*pnode)->iterativeSetALAP(step - (*pnode)->delay);
+		setALAP(step);
 	}
 };
 
