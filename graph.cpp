@@ -302,8 +302,10 @@ void graph::placeCriticalPath()
 		if (node->asap == node->alap)
 		{
 			node->criticalPath = true;
-			scheduleNodeStep(node,node->asap,2);
+			scheduleNodeStep(node,node->asap);
 		}
+		else
+			edsOrder.push_back(node);
 		// if (node->alap - node->asap == minL)
 		// 	node->criticalPath = true;
 		// if (node->asap == node->alap)
@@ -373,7 +375,7 @@ void graph::TC_EDS(int sorting_mode)
 			}
 		}
 		// cout << (*pnode)->num+1 << " (" << (*pnode)->name << "): " << a << " " << b << " Step: " << minstep << endl;
-		scheduleNodeStep(*pnode,minstep,2);
+		scheduleNodeStep(*pnode,minstep);
 	}
 	watch.stop();
 	print("Placing other nodes done!\n");
