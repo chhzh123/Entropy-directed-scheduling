@@ -98,7 +98,7 @@ bool graph::addEdge(const string vFrom,const string vTo)
 	VNode* vt = findVertex(vTo);
 	if (vf == nullptr || vt == nullptr)
 		return false;
-	if (MODE.size() < 2 || MODE[1] == 0) // top-down behavior
+	if ((MODE.size() == 2 && MODE[1] == 0) || (MODE.size() > 2 && MODE[2] == 1)) // top-down behavior
 	{
 		vf->succ.push_back(vt);
 		vt->pred.push_back(vf);
@@ -465,6 +465,7 @@ void graph::mainScheduling(int mode)
 		case 0: TC_EDS(0);break;
 		case 1: TC_EDS(1);break;
 		case 3: TC_FDS();break;
+		case 4: TC_LS();break;
 		case 10: RC_EDS(0);break;
 		case 11: RC_EDS(1);break;
 		case 13: RC_FDS();break;
@@ -1060,4 +1061,64 @@ void graph::printTimeFrame() const // need to be printed before scheduling
 	int cnt = 1;
 	for (auto pnode : adjlist)
 		cout << pnode->num+1 << ": [ " << pnode->asap << " , " << pnode->alap << " ]" << endl;
+}
+
+void graph::TC_LS() // Time-constrained List Scheduling
+{
+	print("Begin time-constrained list scheduling (LS)...\n");
+	watch.restart();
+
+	// obtain time frame (ASAP & ALAP)
+	topologicalSortingDFS();
+
+	// initialize N_r(t)
+	map<string,int> temp;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		temp[pnr->first] = 0;
+	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
+		nrt.push_back(temp);
+
+	print("Begin placing operations...");
+	clearMark();
+	setDegrees();
+
+	std::sort(order.begin(),order.end(),
+		[this](VNode* const& v1, VNode* const& v2) // lambda
+		{ return (v1->alap - v1->asap < v2->alap - v2->asap); });
+
+	while (numScheduledOp < vertex)
+	{
+		vector<VNode*> readyList;
+		for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
+			if (mark[(*pnode)->num] == 0)
+				readyList.push_back(*pnode);
+		// printf("Scheduled %d ops. Len readyList: %d\n",numScheduledOp,readyList.size());
+		map<string,int> maxNr;
+		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+			maxNr[mapResourceType(pnr->first)] = maxNrt[mapResourceType(pnr->first)] + 1;
+		for (auto pnode = readyList.cbegin(); pnode != readyList.cend(); ++pnode)
+			for (int step = (*pnode)->asap; step <= (*pnode)->alap; ++step)
+			{
+				bool flag_in = true;
+				for (int delay = 0; delay < (*pnode)->delay; delay++)
+					if (nrt[step+delay][mapResourceType((*pnode)->type)] + 1 > maxNr[mapResourceType((*pnode)->type)])
+					{
+						flag_in = false;
+						break;
+					}
+				if (flag_in)
+				{
+					scheduleNodeStep(*pnode,step,2);
+					// printf("Schedule node %d at %d\n",(*pnode)->num,step);
+					mark[(*pnode)->num] = 1;
+					break;
+				}
+			}
+	}
+
+	watch.stop();
+	print("Placing operations done!\n");
+
+	print("Finish list scheduling!\n");
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }

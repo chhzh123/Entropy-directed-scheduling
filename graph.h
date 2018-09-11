@@ -114,6 +114,9 @@ public:
 	// Force-directed scheduling for resource-constrained problems
 	void RC_FDS();
 
+	// List scheduling for time-constrained problems
+	void TC_LS();
+
 	// test
 	bool testFeasibleSchedule() const;
 
