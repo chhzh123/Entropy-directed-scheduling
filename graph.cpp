@@ -448,14 +448,17 @@ void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
 
 void graph::countResource() const
 {
+	ofstream out("./Resource_"+to_string(LC)+".out",ios::app);
 	for (auto ptype = nr.crbegin(); ptype != nr.crend(); ++ptype)
 	{
 		cout << ptype->first << ": " << maxNrt.at(ptype->first) << endl;
+		out << maxNrt.at(ptype->first) << " ";
 		if (PRINT)
 		// if (ptype->first == "MUL" || ptype->first == "mul")
 			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
 				cout << "Step " << i << ": " << nrt[i].at(mapResourceType(ptype->first)) << endl;
 	}
+	out << endl;
 }
 
 void graph::mainScheduling(int mode)
@@ -469,6 +472,7 @@ void graph::mainScheduling(int mode)
 		case 10: RC_EDS(0);break;
 		case 11: RC_EDS(1);break;
 		case 13: RC_FDS();break;
+		case 14: RC_LS();break;
 		default: cout << "Invaild mode!" << endl;return;
 	}
 	if (mode == 0)
@@ -1084,7 +1088,8 @@ void graph::TC_LS() // Time-constrained List Scheduling
 
 	std::sort(order.begin(),order.end(),
 		[this](VNode* const& v1, VNode* const& v2) // lambda
-		{ return (v1->alap - v1->asap < v2->alap - v2->asap); });
+		// { return (v1->alap - v1->asap < v2->alap - v2->asap); });
+		{ return (v1->alap < v2->alap); });
 
 	while (numScheduledOp < vertex)
 	{
@@ -1114,6 +1119,77 @@ void graph::TC_LS() // Time-constrained List Scheduling
 					break;
 				}
 			}
+	}
+
+	watch.stop();
+	print("Placing operations done!\n");
+
+	print("Finish list scheduling!\n");
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
+void graph::RC_LS() // Resource-constrained List Scheduling
+{
+	print("Begin resource-constrained list scheduling (LS)...\n");
+	watch.restart();
+
+	// obtain time frame (ASAP & ALAP)
+	topologicalSortingDFS();
+
+	// initialize N_r(t)
+	map<string,int> temp,maxNr;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		if (pnr->first == "MUL")
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.first;
+		}
+		else
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.second;
+		}
+	for (int i = 0; i < vertex; ++i)
+		nrt.push_back(temp);
+
+	print("Begin placing operations...");
+	clearMark();
+	setDegrees();
+	vector<VNode*> readyList;
+
+	// sort by priority function
+	std::sort(order.begin(),order.end(),
+			[this](VNode* const& v1, VNode* const& v2) // lambda
+			{ return ((v1->alap - v2->asap) < (v1->alap - v2->alap)); });
+
+	// while there're unscheduled operations
+	for (int cstep = 1; numScheduledOp < vertex; ++cstep)
+	{
+		// determine the ready operations
+		for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
+			if (mark[(*pnode)->num] == 0 && (*pnode)->tempIncoming == 0 && (*pnode)->asap <= cstep) // in-degree = 0
+			{
+				readyList.push_back(*pnode);
+				mark[(*pnode)->num] = 1; // have been pushed into readyList
+			}
+
+		// determine eligible operations in c-step and schedule them
+		for (int i = 0; i < readyList.size(); )
+		{
+			bool flag = true;
+			for (int d = 1; d <= readyList[i]->delay; ++d)
+				if (nrt[cstep+d-1][mapResourceType(readyList[i]->type)]+1 > maxNr.at(mapResourceType(readyList[i]->type)))
+					flag = false;
+			if (flag)
+			{
+				scheduleNodeStepResource(readyList[i],cstep,2);
+				for (auto pnode = readyList[i]->succ.begin(); pnode != readyList[i]->succ.end(); ++pnode)
+					(*pnode)->tempIncoming--;
+				readyList.erase(readyList.begin()+i);
+				i--;
+			}
+			i++;
+		}
 	}
 
 	watch.stop();

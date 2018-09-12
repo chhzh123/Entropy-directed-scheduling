@@ -18,7 +18,7 @@ using namespace std;
 
 // Benchmarks for our experiments can be downloaded at
 // https://www.ece.ucsb.edu/EXPRESS/benchmark/
-const string dot_file[21] = {
+const string dot_file[22] = {
 	"",
 	"hal",
 	"horner_bezier_surf_dfg__12"/*c*/,
@@ -39,7 +39,8 @@ const string dot_file[21] = {
 	"jpeg_idct_ifast_dfg__5"/*c*/,
 	"jpeg_fdct_islow_dfg__6"/*c*/,
 	"smooth_color_z_triangle_dfg__31"/*c*/,
-	"invert_matrix_general_dfg__3"/*c*/
+	"invert_matrix_general_dfg__3"/*c*/,
+	"dag_1500"
 };
 
 // if you need to load from other path, please modify here
@@ -55,7 +56,7 @@ string path = "./Benchmarks/";
 //  year	=	{2007}
 // }
 // -----------------------------------------------------------------
-const int RC[21][2] = {
+const int RC[22][2] = {
 	{0,0},/*null*/
 	{2,1},/*1*/
 	{2,1},/*2*/
@@ -76,7 +77,8 @@ const int RC[21][2] = {
 	{10,9},/*17*/
 	{5,7},/*18*/
 	{8,9},/*19*/
-	{15,11}/*20*/
+	{15,11},/*20*/
+	{25,20}/*21*/
 };
 
 void interactive()
@@ -102,7 +104,7 @@ void interactive()
 		vector<int> MODE;
 		cout << "\nPlease enter the scheduling mode:" << endl;
 		cout << "Time-constrained(TC):\t0  EDS(DFS)\t1  EDS(Kahn)\t2  ILP\t3  FDS\t4  LS" << endl;
-		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP\t13 FDS" << endl;
+		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP\t13 FDS\t 14 LS" << endl;
 		int mode;
 		cin >> mode;
 		MODE.push_back(mode);
@@ -155,8 +157,8 @@ void interactive()
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] scheduling mode:
-// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP    3  FDS   4LS
-//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP    13 FDS
+// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP    3  FDS   4  LS
+//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP    13 FDS   14 LS
 // ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[2] latency factor (LC) or scheduling order
 //                                0 top-down  1 bottom-up
@@ -172,13 +174,14 @@ void commandline(char *argv[])
 		case 4: MODE.push_back(stoi(string(argv[3])));break;
 		case 10:
 		case 11:
-		case 13: MODE.push_back(stoi(string(argv[2])));break;
+		case 13:
+		case 14: MODE.push_back(stoi(string(argv[2])));break;
 		case 2: MODE.push_back(stoi(string(argv[2])));break;
 		case 12: MODE.push_back(stoi(string(argv[1])));break;
 		default: cout << "Error: Mode wrong!" << endl;break;
 	}
 
-	for (int file_num = 1; file_num < 21; ++file_num)
+	for (int file_num = 1; file_num < 22; ++file_num)
 	{
 		ifstream infile(path + dot_file[file_num] + ".dot");
 		if (!infile)

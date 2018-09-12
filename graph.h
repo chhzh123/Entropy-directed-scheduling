@@ -116,6 +116,7 @@ public:
 
 	// List scheduling for time-constrained problems
 	void TC_LS();
+	void RC_LS();
 
 	// test
 	bool testFeasibleSchedule() const;
