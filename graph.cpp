@@ -14,6 +14,7 @@
 #include <utility> // pairs
 #include <map>
 #include <string>
+#include <algorithm>
 #include <regex> // regular expression for string split
 #include <iterator>
 #include <cmath>
@@ -201,6 +202,19 @@ void graph::topologicalSortingDFS()
 	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // alap
 		if ((*pnode)->pred.empty() && !mark[(*pnode)->num]) // in-degree = 0
 			dfsALAP(*pnode);
+	// regenerate order
+	sort(order.begin(),order.end(),[](VNode* const& node1,VNode* const& node2)
+		{
+			if (node1->alap < node2->alap)
+				return true;
+			else if (node1->alap == node2->alap)
+					if (node1->asap < node2->asap)
+						return true;
+					else
+						return false;
+				else
+					return false;
+		});
 	print("Topological sorting done!");
 	// printTimeFrame();
 }
