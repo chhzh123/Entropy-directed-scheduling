@@ -88,6 +88,16 @@ struct VNode
 			(*pnode)->iterativeSetALAP(step - (*pnode)->delay);
 		setALAP(step);
 	}
+	bool testValid(int step)
+	{
+		for (auto pnode = succ.cbegin(); pnode != succ.cend(); ++pnode)
+			if ((*pnode)->cstep + (*pnode)->delay >= step)
+				return false;
+		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode)
+			if (step + delay >= (*pnode)->cstep)
+				return false;
+		return true;
+	}
 };
 
 class graph
@@ -153,6 +163,7 @@ private:
 	// scheduling
 	void placeCriticalPath();
 	bool scheduleNodeStep(VNode* const& node,int step,int mode);
+	bool newScheduleNodeStep(VNode* const& node,int step);
 	bool scheduleNodeStepResource(VNode* const& node,int step,int mode);
 	double calForce(int a,int b,int na,int nb,const std::vector<double>& DG,int delay) const;
 	double calPredForce(VNode* const& v,int cstep,const std::map<std::string,std::vector<double>>& DG) const;

@@ -203,18 +203,18 @@ void graph::topologicalSortingDFS()
 		if ((*pnode)->pred.empty() && !mark[(*pnode)->num]) // in-degree = 0
 			dfsALAP(*pnode);
 	// regenerate order
-	sort(order.begin(),order.end(),[](VNode* const& node1,VNode* const& node2)
-		{
-			if (node1->alap < node2->alap)
-				return true;
-			else if (node1->alap == node2->alap)
-					if (node1->asap < node2->asap)
-						return true;
-					else
-						return false;
-				else
-					return false;
-		});
+	// sort(order.begin(),order.end(),[](VNode* const& node1,VNode* const& node2)
+	// 	{
+	// 		if (node1->alap < node2->alap)
+	// 			return true;
+	// 		else if (node1->alap == node2->alap)
+	// 				if (node1->asap < node2->asap)
+	// 					return true;
+	// 				else
+	// 					return false;
+	// 			else
+	// 				return false;
+	// 	});
 	print("Topological sorting done!");
 	// printTimeFrame();
 }
@@ -250,6 +250,27 @@ void graph::topologicalSortingKahn()
 	}
 	print("Topological sorting (Kahn) done!");
 	clearMark();
+}
+
+bool graph::newScheduleNodeStep(VNode* const& node,int step)
+{
+	cout << node->num << " " << step << endl;
+	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
+	{
+		cout << "Invalid schedule!" << endl;
+		return false;
+	}
+	auto Rtype = mapResourceType(node->type);
+	for (int i = node->cstep; i < node->cstep + node->delay; ++i)
+		nrt[i][Rtype]--;
+	for (int i = step; i < step + node->delay; ++i)
+		nrt[i][Rtype]++;
+	maxNrt[Rtype] = 0;
+	for (auto x: nrt)
+		maxNrt[Rtype] = max(maxNrt[Rtype],x[Rtype]);
+	node->schedule(step);
+	maxLatency = max(maxLatency,step + node->delay - 1);
+	return true;
 }
 
 bool graph::scheduleNodeStep(VNode* const& node,int step,int mode = 0)
@@ -361,26 +382,10 @@ void graph::TC_EDS(int sorting_mode)
 		for (int t = a; t <= b; ++t)
 		{
 			double sumNrt = 0;
-			// if (maxNrt[mapResourceType((*pnode)->type)] < nr[mapResourceType((*pnode)->type)] / ConstrainedLatency)
-			// {
-			// 	minstep = a;
-			// 	// cout << (*pnode)->num+1 << " " << a << endl;
-			// 	break;
-			// }
 			for (int d = 1; d <= (*pnode)->delay; ++d)
 			{
 				string tempType = mapResourceType((*pnode)->type);
-				// if (tempType == "MUL" || tempType == "ALU")
-				// 	sumNrt += 5*nrt[t+d-1]["MUL"] + nrt[t+d-1]["ALU"]; // cost
-				// else
-					sumNrt += nrt[t+d-1][tempType];
-				// // remember to change minnrt to maxnrt, and let sumNrt > minnrt
-				// double oldRatio = ((double)nrt[t+d-1][tempType])/(double)nr[tempType];
-				// double newRatio = ((double)nrt[t+d-1][tempType]+1)/(double)nr[tempType];
-				// if (oldRatio != 0)
-				// 	sumNrt += -newRatio*log(newRatio) + oldRatio*log(oldRatio);
-				// else
-				// 	sumNrt += -newRatio*log(newRatio);
+				sumNrt += nrt[t+d-1][tempType];
 			}
 			if (sumNrt < minnrt) // leave freedom to remained ops
 			{
@@ -393,6 +398,36 @@ void graph::TC_EDS(int sorting_mode)
 	}
 	watch.stop();
 	print("Placing other nodes done!\n");
+	print("Test small steps.\n");
+	int cnt = 0;
+	while (cnt != vertex)
+	{
+		cnt = 0;
+		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); pnode++)
+		{
+			// cout << (*pnode)-> num << " " << (*pnode)->cstep << " " << cnt << endl;
+			string tempType = mapResourceType((*pnode)->type);
+			int t = (*pnode)->cstep, cntin = 0;
+			for (int d = 1; d <= (*pnode)->delay; ++d)
+				if (t+d-2>0 && nrt[t+d-1][tempType] > nrt[t+d-2][tempType] + 1)
+					cntin++;
+			if (cntin == (*pnode)->delay)
+				if (t - 1 > 0 && (*pnode)->testValid(t-1)){
+					newScheduleNodeStep(*pnode,t-1);
+					continue;	
+				}
+			cntin = 0;
+			for (int d = 1; d <= (*pnode)->delay; ++d)
+				if (t+d <= ConstrainedLatency && nrt[t+d-1][tempType] > nrt[t+d][tempType] + 1)
+					cntin++;
+			if (cntin == (*pnode)->delay)
+				if (t + (*pnode)->delay - 1 <= ConstrainedLatency && (*pnode)->testValid(t+1)){
+					newScheduleNodeStep(*pnode,t+1);
+					continue;
+				}
+			cnt++;
+		}
+	}
 	print("Finish EDS scheduling!\n");
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
