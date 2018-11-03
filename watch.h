@@ -3,7 +3,6 @@
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
 // This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
-// Our work has been contributed to ICCD 2018 and TCAD.
 
 // This head file contains the implement of high-accuracy time counter.
 

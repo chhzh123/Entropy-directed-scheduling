@@ -115,9 +115,11 @@ public:
 	void mainScheduling(int mode = 0);
 
 	// EDS starting from the front
-	void TC_EDS(int sorting_mode = 0);
+	void TC_EDS (int order_mode = 0);
+	void TC_IEDS(int order_mode = 0);
 	// EDS for resource-constrained scheduling problems
-	void RC_EDS(int sorting_mode = 0);
+	void RC_EDS (int order_mode = 0);
+	void RC_IEDS(int order_mode = 0);
 
 	// Force-directed scheduling for time-constrained problems
 	void TC_FDS();
@@ -155,7 +157,7 @@ private:
 	inline std::string mapResourceType(const std::string type) const;
 
 	// preparation
-	void topologicalSortingDFS();
+	void topologicalSortingDFS(bool aslap_order = false);
 	void topologicalSortingKahn();
 	void dfsASAP(VNode* const& node);
 	void dfsALAP(VNode* const& node);
@@ -172,6 +174,7 @@ private:
 	// output
 	void standardOutput() const;
 	void simplifiedOutput() const;
+	void printGanttGraph() const;
 	void countResource() const;
 	inline void print(const std::string str) const;
 	void countASAP() const;
@@ -181,6 +184,9 @@ private:
 	int edge = 0;
 	int typeNum = 0;
 	int numScheduledOp = 0;
+
+	// mul_delay
+	int MUL_DELAY = 2;
 
 	// critical path delay
 	int cdepth = 0;
@@ -198,6 +204,7 @@ private:
 
 	// N_r
 	std::map<std::string,int> nr;
+	std::map<std::string,int> r_delay;
 	// N_r(t)
 	std::vector<std::map<std::string,int>> nrt;
 	// max N_r(t)
