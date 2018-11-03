@@ -372,30 +372,91 @@ void graph::TC_EDS(int sorting_mode)
 	// cout << "Constrained latency: " << ConstrainedLatency << endl;
 
 	// main part of scheduling
+	map<string,vector<int>> gr;
+	int tempnr = nr["MUL"]*2;
+	int num = (tempnr % ConstrainedLatency == 0 ? tempnr / ConstrainedLatency : tempnr / ConstrainedLatency + 1);
+	int q = tempnr-ConstrainedLatency*(num-1);
+	vector<int> n1(1,0);
+	for (int i = 0; i < q; ++i)
+		n1.push_back(num);
+	for (int i = 0; i < ConstrainedLatency-q; ++i)
+		n1.push_back(num-1);
+	tempnr = nr["ALU"];
+	num = (tempnr % ConstrainedLatency == 0 ? tempnr / ConstrainedLatency : tempnr / ConstrainedLatency + 1);
+	q = tempnr-ConstrainedLatency*(num-1);
+	vector<int> n2(1,0);
+	for (int i = 0; i < q; ++i)
+		n2.push_back(num);
+	for (int i = 0; i < ConstrainedLatency-q; ++i)
+		n2.push_back(num-1);
+	gr["MUL"] = n1;
+	gr["ALU"] = n2;
 	print("Begin placing other nodes...");
 	for (auto pnode = edsOrder.cbegin(); pnode != edsOrder.cend(); ++pnode)
 	{
 		int a = (*pnode)->asap, b = (*pnode)->alap;
-		// because of topo order, it's pred must have been scheduled
-		double minnrt = MAXINT_;
-		int minstep = a, maxnrt = -MAXINT_, maxstep = a, flag = 0;
+		bool flag_out = false;
+		// cout << (*pnode)->name << " " << a << " " << b << endl;
 		for (int t = a; t <= b; ++t)
 		{
-			double sumNrt = 0;
+			bool flag = true;
 			for (int d = 1; d <= (*pnode)->delay; ++d)
 			{
 				string tempType = mapResourceType((*pnode)->type);
-				sumNrt += nrt[t+d-1][tempType];
+				if (nrt[t+d-1][tempType]+1 > gr[tempType][t+d-1])
+					flag = 0;
 			}
-			if (sumNrt < minnrt) // leave freedom to remained ops
+			if (flag)
 			{
-				minnrt = sumNrt;
-				minstep = t;
+				scheduleNodeStep(*pnode,t,2);
+				flag_out = true;
+				break;
 			}
 		}
-		// cout << (*pnode)->num+1 << " (" << (*pnode)->name << "): " << a << " " << b << " Step: " << minstep << endl;
-		scheduleNodeStep(*pnode,minstep);
+		if (!flag_out)
+		{
+			double minnrt = MAXINT_;
+			int minstep = a;
+			for (int t = a; t <= b; ++t)
+			{
+				double sumNrt = 0;
+				for (int d = 1; d <= (*pnode)->delay; ++d)
+				{
+					string tempType = mapResourceType((*pnode)->type);
+					sumNrt += nrt[t+d-1][tempType];
+				}
+				if (sumNrt < minnrt) // leave freedom to remained ops
+				{
+					minnrt = sumNrt;
+					minstep = t;
+				}
+			}
+			scheduleNodeStep(*pnode,minstep,2);
+		}
 	}
+	// for (auto pnode = edsOrder.cbegin(); pnode != edsOrder.cend(); ++pnode)
+	// {
+	// 	int a = (*pnode)->asap, b = (*pnode)->alap;
+	// 	// because of topo order, it's pred must have been scheduled
+	// 	double minnrt = MAXINT_;
+	// 	int minstep = a, maxnrt = -MAXINT_, maxstep = a, flag = 0;
+	// 	for (int t = a; t <= b; ++t)
+	// 	{
+	// 		double sumNrt = 0;
+	// 		for (int d = 1; d <= (*pnode)->delay; ++d)
+	// 		{
+	// 			string tempType = mapResourceType((*pnode)->type);
+	// 			sumNrt += nrt[t+d-1][tempType];
+	// 		}
+	// 		if (sumNrt < minnrt) // leave freedom to remained ops
+	// 		{
+	// 			minnrt = sumNrt;
+	// 			minstep = t;
+	// 		}
+	// 	}
+	// 	// cout << (*pnode)->num+1 << " (" << (*pnode)->name << "): " << a << " " << b << " Step: " << minstep << endl;
+	// 	scheduleNodeStep(*pnode,minstep);
+	// }
 	watch.stop();
 	print("Placing other nodes done!\n");
 	print("Test small steps.\n");
@@ -409,7 +470,7 @@ void graph::TC_EDS(int sorting_mode)
 			string tempType = mapResourceType((*pnode)->type);
 			int t = (*pnode)->cstep, cntin = 0;
 			for (int d = 1; d <= (*pnode)->delay; ++d)
-				if (t+d-2>0 && nrt[t+d-1][tempType] > nrt[t+d-2][tempType] + 1)
+				if (t+d-2>0 && nrt[t+d-1][tempType] >= nrt[t+d-2][tempType] + 1)
 					cntin++;
 			if (cntin == (*pnode)->delay)
 				if (t - 1 > 0 && (*pnode)->testValid(t-1)){
@@ -497,17 +558,19 @@ void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
 
 void graph::countResource() const
 {
+	int sum_r = 0;
 	ofstream out("./Resource_"+to_string(LC)+".out",ios::app);
 	for (auto ptype = nr.crbegin(); ptype != nr.crend(); ++ptype)
 	{
 		cout << ptype->first << ": " << maxNrt.at(ptype->first) << endl;
 		out << maxNrt.at(ptype->first) << " ";
+		sum_r += maxNrt.at(ptype->first);
 		if (PRINT)
 		// if (ptype->first == "MUL" || ptype->first == "mul")
 			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
 				cout << "Step " << i << ": " << nrt[i].at(mapResourceType(ptype->first)) << endl;
 	}
-	out << endl;
+	out << "\t" << sum_r << endl;
 }
 
 void graph::mainScheduling(int mode)

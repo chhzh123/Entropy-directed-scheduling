@@ -91,10 +91,10 @@ struct VNode
 	bool testValid(int step)
 	{
 		for (auto pnode = succ.cbegin(); pnode != succ.cend(); ++pnode)
-			if ((*pnode)->cstep + (*pnode)->delay >= step)
+			if (step + delay >= (*pnode)->cstep)
 				return false;
 		for (auto pnode = pred.cbegin(); pnode != pred.cend(); ++pnode)
-			if (step + delay >= (*pnode)->cstep)
+			if ((*pnode)->cstep + (*pnode)->delay >= step)
 				return false;
 		return true;
 	}

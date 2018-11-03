@@ -40,6 +40,8 @@ const string dot_file[22] = {
 	"jpeg_fdct_islow_dfg__6"/*c*/,
 	"smooth_color_z_triangle_dfg__31"/*c*/,
 	"invert_matrix_general_dfg__3"/*c*/,
+	// "dag_500",
+	// "dag_1000",
 	"dag_1500"
 };
 
