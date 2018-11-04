@@ -64,6 +64,30 @@ void graph::TC_IEDS(int order_mode)
 	for (int i = 0; i <= ConstrainedLatency; ++i) // number+1
 		nrt.push_back(temp);
 
+	// build distribution graph
+	map<string,vector<double>> DG;// type step dg
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+	{
+		vector<double> temp(ConstrainedLatency + MUL_DELAY,0);
+		DG[mapResourceType(pnr->first)] = temp;
+	}
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+		for (int i = (*pnode)->asap; i <= (*pnode)->alap; ++i)
+			for (int d = 0; d < (*pnode)->delay; ++d)
+				DG[mapResourceType((*pnode)->type)][i + d] += 1.0 / (double)((*pnode)->getLength());
+	double sum = 0;
+	for (int i = 1; i <= ConstrainedLatency; ++i)
+	{
+		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+			sum += DG[pnr->first][i];
+		if (sum > (float)vertex/2)
+		{
+			cout << "Mid line: " << i << endl;
+			cout << "Percentage: " << (float)i/(float)ConstrainedLatency << endl;
+			break;
+		}
+	}
+
 	// placing operations on critical path
 	placeCriticalPath();
 	print("Critical path time delay: " + to_string(cdepth));
@@ -71,19 +95,44 @@ void graph::TC_IEDS(int order_mode)
 
 	// main part of scheduling
 	// first set virtual constrained resource numbers
+	countTF();
 	map<string,vector<int>> gr;
-	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+	for (auto pnr = nr.crbegin(); pnr != nr.crend(); ++pnr)
 	{
 		int totnr = pnr->second * r_delay[pnr->first];
-		int num = (totnr % ConstrainedLatency == 0 ? totnr / ConstrainedLatency : totnr / ConstrainedLatency + 1); // ceiling function
-		int q = totnr - ConstrainedLatency * (num - 1);
-		vector<int> n(1,0);
-		for (int i = 0; i < q; ++i)
-			n.push_back(num);
-		for (int i = 0; i < ConstrainedLatency - q; ++i)
-			n.push_back(num-1);
+		int l = ConstrainedLatency;
+		int num = (totnr % l == 0 ? totnr / l : totnr / l + 1); // ceiling function
+		int q = totnr - l * (num - 1);
+		vector<int> n(ConstrainedLatency+1,0);
+		vector<bool> mark(ConstrainedLatency+1,false);
+		// cout << pnr->first << ": " << num << "*" << q << "+" << (num-1) << "*" << (l - q) << endl;
+		for (int i = 1; i <= ConstrainedLatency; ++i)
+		{
+			if (TFcount[pnr->first][i] < num)
+			{
+				l--; // reduce control step
+				n[i] = TFcount[pnr->first][i];
+				mark[i] = true;
+			}
+		}
+		num = (totnr % l == 0 ? totnr / l : totnr / l + 1);
+		q = totnr - l * (num - 1);
+		for (int i = 1; i <= ConstrainedLatency; ++i)
+			if (!mark[i])
+				if (q > 0)
+				{
+					n[i] = num;
+					q--;
+				}
+				else
+					n[i] = num - 1;
 		gr[pnr->first] = n;
+		cout << pnr->first << ": ";
+		for (int i = 1; i <= ConstrainedLatency; ++i) // ConstrainedLatency
+			cout << gr[pnr->first][i] << " ";
+		cout << endl;
 	}
+
 	print("Begin placing other nodes...");
 	for (auto pnode = edsOrder.cbegin(); pnode != edsOrder.cend(); ++pnode)
 	{
@@ -128,7 +177,7 @@ void graph::TC_IEDS(int order_mode)
 		}
 	}
 	print("Placing other nodes done!\n");
-	print("Test small steps.\n");
+	print("Begin small adjustment...\n");
 	int cnt = 0;
 	while (cnt != vertex)
 	{
@@ -159,18 +208,77 @@ void graph::TC_IEDS(int order_mode)
 		}
 	}
 	watch.stop();
+	countEachStepResource();
+	print("Finish adjustment.\n");
 	print("Finish IEDS!\n");
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }
 
-void graph::RC_EDS(int sorting_mode) // Resource-constrained EDS
-{}
+void graph::RC_EDS() // Resource-constrained EDS
+{
+	print("Begin EDS...\n");
+	watch.restart();
+	topologicalSortingDFS(0);
+	// initialize N_r(t)
+	map<string,int> temp,maxNr;
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
+		if (pnr->first == "mul" || pnr->first == "MUL")
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.first;
+		}
+		else
+		{
+			temp[pnr->first] = 0;
+			maxNr[pnr->first] = MAXRESOURCE.second;
+		}
+	nrt.push_back(temp); // nrt[0]
 
-void graph::RC_IEDS(int order_mode) // Resource-constrained EDS
+	// NO nrt.push_back! NO placeCriticalPath!
+	print("Begin placing operations...");
+	for (auto pnode = order.cbegin(); pnode != order.cend(); ++pnode)
+	{
+		int a = (*pnode)->asap, b = (*pnode)->alap;
+		// because of topo order, it's pred must have been scheduled
+		int maxstep = a, maxnrt = -1;
+		// cout << (*pnode)->name << " " << a << " " << b << endl;
+		for (int t = a; t <= max(a,maxLatency) + MUL_DELAY; ++t)
+		{
+			int flag = 1, sumNrt = 0;
+			for (int d = 1; d <= (*pnode)->delay; ++d)
+			{
+				string tempType = mapResourceType((*pnode)->type);
+				if (t+d-1 >= nrt.size())
+					nrt.push_back(temp); // important!
+				if (nrt[t+d-1][tempType]+1 > maxNr[tempType])
+					flag = 0;
+				sumNrt += nrt[t+d-1][tempType];
+			}
+			// if (flag == 1)
+			// {
+			// 	maxstep = t;
+			// 	break;
+			// }
+			if (flag == 1 && sumNrt > maxnrt) // leave freedom to remained ops
+			{
+				maxnrt = sumNrt;
+				maxstep = t;
+				break;
+			}
+		}
+		scheduleNodeStepResource(*pnode,maxstep); // some differences
+	}
+	watch.stop();
+	print("Placing operations done!\n");
+	print("Finish EDS!\n");
+	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+}
+
+void graph::RC_IEDS() // Resource-constrained EDS
 {
 	print("Begin IEDS...\n");
 	watch.restart();
-	topologicalSortingDFS(order_mode);
+	topologicalSortingDFS(1);
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)

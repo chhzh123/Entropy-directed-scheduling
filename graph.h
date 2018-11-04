@@ -118,8 +118,8 @@ public:
 	void TC_EDS (int order_mode = 0);
 	void TC_IEDS(int order_mode = 0);
 	// EDS for resource-constrained scheduling problems
-	void RC_EDS (int order_mode = 0);
-	void RC_IEDS(int order_mode = 0);
+	void RC_EDS ();
+	void RC_IEDS();
 
 	// Force-directed scheduling for time-constrained problems
 	void TC_FDS();
@@ -176,9 +176,9 @@ private:
 	void simplifiedOutput() const;
 	void printGanttGraph() const;
 	void countResource() const;
+	void countEachStepResource() const;
+	void countTF();
 	inline void print(const std::string str) const;
-	void countASAP() const;
-	void countASAP_RCS() const;
 	
 	int vertex = 0;
 	int edge = 0;
@@ -205,6 +205,7 @@ private:
 	// N_r
 	std::map<std::string,int> nr;
 	std::map<std::string,int> r_delay;
+	std::map<std::string,std::vector<int>> TFcount;
 	// N_r(t)
 	std::vector<std::map<std::string,int>> nrt;
 	// max N_r(t)

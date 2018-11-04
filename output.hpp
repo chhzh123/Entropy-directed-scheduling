@@ -22,6 +22,17 @@ void graph::printAdjlist() const
 	}
 }
 
+void graph::countEachStepResource() const
+{
+	for (auto ptype = nr.crbegin(); ptype != nr.crend(); ++ptype)
+	{
+		cout << mapResourceType(ptype->first) << ": ";
+		for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
+			cout << nrt[i].at(mapResourceType(ptype->first)) << " ";
+		cout << endl;
+	}
+}
+
 void graph::countResource() const
 {
 	int sum_r = 0;
@@ -32,9 +43,7 @@ void graph::countResource() const
 		out << maxNrt.at(ptype->first) << " ";
 		sum_r += maxNrt.at(ptype->first);
 		if (PRINT)
-		// if (ptype->first == "MUL" || ptype->first == "mul")
-			for (int i = 1; i <= maxLatency; ++i) // ConstrainedLatency
-				cout << "Step " << i << ": " << nrt[i].at(mapResourceType(ptype->first)) << endl;
+			countEachStepResource();
 	}
 	out << "\t" << sum_r << endl;
 }
@@ -127,74 +136,23 @@ void graph::print(const string str) const
 		cout << str << endl;
 }
 
-void graph::countASAP() const
+void graph::countTF()
 {
-	vector<int> countasap(cdepth+1,0);
-	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
-		countasap[(*pnode)->asap] += 1;
-	// cout << "(";
-	// for (int i = 1; i < countasap.size(); ++i)
-	// 	cout << countasap[i] << ", ";
-	// cout << ")" << endl;
-	vector<int> sumv(cdepth+1,0);
-	for (int i = 1; i < countasap.size(); ++i)
-		sumv[i] = sumv[i-1] + countasap[i];
-	for (int i = 1; i < countasap.size(); ++i)
-		if (sumv[i] > (float)(sumv[countasap.size()-1])/2.0)
-		{
-			if (i < (float)(countasap.size()-1)/2.0)
-				cout << (float)i/(countasap.size()-1) << " bottom-up" << endl;
-			else
-				cout << (float)i/(countasap.size()-1) << " top-down" << endl;
-			break;
-		}
-}
-
-void graph::countASAP_RCS() const
-{
-	vector<int> countMULasap(cdepth+1,0);
-	vector<int> countALUasap(cdepth+1,0);
-	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode) // asap
-		if (mapResourceType((*pnode)->type) == "MUL")
-			countMULasap[(*pnode)->asap] += 1;
-		else
-			countALUasap[(*pnode)->asap] += 1;
-	cout << "MUL: (";
-	for (int i = 1; i < countMULasap.size(); ++i)
-		cout << countMULasap[i] << ", ";
-	cout << ")" << endl;
-	cout << "ALU: (";
-	for (int i = 1; i < countALUasap.size(); ++i)
-		cout << countALUasap[i] << ", ";
-	cout << ")" << endl;
-	vector<int> sumMULv(cdepth+1,0);
-	vector<int> sumALUv(cdepth+1,0);
-	for (int i = 1; i < countMULasap.size(); ++i)
+	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
 	{
-		sumMULv[i] = sumMULv[i-1] + countMULasap[i];
-		sumALUv[i] = sumALUv[i-1] + countALUasap[i];
+		vector<int> tnr(ConstrainedLatency+1,0);
+		TFcount[pnr->first] = tnr;
 	}
-	cout << "Total MUL:" << sumMULv[countMULasap.size()-1] << endl;
-	cout << "Total ALU:" << sumALUv[countMULasap.size()-1] << endl;
-	cout << "Total nodes: " << sumMULv[countMULasap.size()-1] + sumALUv[countMULasap.size()-1] << endl;
-	for (int i = 1; i < countMULasap.size(); ++i)
-		if (sumMULv[i] > (float)(sumMULv[countMULasap.size()-1])/2.0)
-		{
-			if (i >= (float)(countMULasap.size()-1)/2.0)
-				cout << (float)i/(countMULasap.size()-1) << " MUL bottom-up" << endl;
-			else
-				cout << (float)i/(countMULasap.size()-1) << " MUL top-down" << endl;
-			break;
-		}
-	for (int i = 1; i < countALUasap.size(); ++i)
-		if (sumALUv[i] > (float)(sumALUv[countALUasap.size()-1])/2.0)
-		{
-			if (i >= (float)(countALUasap.size()-1)/2.0)
-				cout << (float)i/(countALUasap.size()-1) << " ALU bottom-up" << endl;
-			else
-				cout << (float)i/(countALUasap.size()-1) << " ALU top-down" << endl;
-			break;
-		}
+	for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
+		for (int i = (*pnode)->asap; i < (*pnode)->alap + (*pnode)->delay; ++i)
+			TFcount[mapResourceType((*pnode)->type)][i] += 1;
+	// for (auto pnr = nr.crbegin(); pnr != nr.crend(); ++pnr)
+	// {
+	// 	cout << mapResourceType(pnr->first) << ": ";
+	// 	for (int i = 1; i <= ConstrainedLatency; ++i) // ConstrainedLatency
+	// 		cout << (TFcount.at(mapResourceType(pnr->first)))[i] << " ";
+	// 	cout << endl;
+	// }
 }
 
 void graph::printTimeFrame() const // need to be printed before scheduling

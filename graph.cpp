@@ -38,8 +38,8 @@ void graph::mainScheduling(int mode)
 		case 1: TC_IEDS(0);break;
 		case 3: TC_FDS();break;
 		case 4: TC_LS();break;
-		case 10: RC_EDS(0);break;
-		case 11: RC_IEDS(0);break;
+		case 10: RC_EDS();break;
+		case 11: RC_IEDS();break;
 		case 13: RC_FDS();break;
 		case 14: RC_LS();break;
 		default: cout << "Invaild mode!" << endl;return;

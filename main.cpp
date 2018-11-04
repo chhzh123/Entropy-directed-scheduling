@@ -17,7 +17,7 @@ using namespace std;
 
 // Benchmarks for our experiments can be downloaded at
 // https://www.ece.ucsb.edu/EXPRESS/benchmark/
-const string dot_file[22] = {
+const vector<string> dot_file = {
 	"",
 	"hal",
 	"horner_bezier_surf_dfg__12"/*c*/,
@@ -41,7 +41,7 @@ const string dot_file[22] = {
 	"invert_matrix_general_dfg__3"/*c*/,
 	// "dag_500",
 	// "dag_1000",
-	"dag_1500"
+	// "dag_1500"
 };
 
 // if you need to load from other path, please modify here
@@ -182,7 +182,7 @@ void commandline(char *argv[])
 		default: cout << "Error: Mode wrong!" << endl;break;
 	}
 
-	for (int file_num = 1; file_num < 22; ++file_num)
+	for (int file_num = 1; file_num < dot_file.size(); ++file_num)
 	{
 		ifstream infile(path + dot_file[file_num] + ".dot");
 		if (!infile)
