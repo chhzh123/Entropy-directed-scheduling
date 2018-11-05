@@ -110,6 +110,7 @@ void graph::TC_IEDS(int order_mode)
 		{
 			if (TFcount[pnr->first][i] < num)
 			{
+				totnr -= TFcount[pnr->first][i];
 				l--; // reduce control step
 				n[i] = TFcount[pnr->first][i];
 				mark[i] = true;
@@ -127,10 +128,10 @@ void graph::TC_IEDS(int order_mode)
 				else
 					n[i] = num - 1;
 		gr[pnr->first] = n;
-		cout << pnr->first << ": ";
-		for (int i = 1; i <= ConstrainedLatency; ++i) // ConstrainedLatency
-			cout << gr[pnr->first][i] << " ";
-		cout << endl;
+		// cout << pnr->first << ": ";
+		// for (int i = 1; i <= ConstrainedLatency; ++i) // ConstrainedLatency
+		// 	cout << gr[pnr->first][i] << " ";
+		// cout << endl;
 	}
 
 	print("Begin placing other nodes...");
@@ -177,7 +178,7 @@ void graph::TC_IEDS(int order_mode)
 		}
 	}
 	print("Placing other nodes done!\n");
-	print("Begin small adjustment...\n");
+	print("Begin fine-tuning...\n");
 	int cnt = 0;
 	while (cnt != vertex)
 	{
@@ -209,7 +210,7 @@ void graph::TC_IEDS(int order_mode)
 	}
 	watch.stop();
 	countEachStepResource();
-	print("Finish adjustment.\n");
+	print("Finish fine-tune.\n");
 	print("Finish IEDS!\n");
 	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
 }

@@ -49,6 +49,10 @@ struct VNode
 	{
 		alap = std::min(alap,_alap);
 	}
+	inline void extendALAP(int _alap)
+	{
+		alap = _alap;
+	}
 	inline void setLength() // this function should be called as soon as topo sorting has been implemented
 	{
 		length = alap - asap + 1;

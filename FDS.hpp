@@ -153,11 +153,6 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 	while (numScheduledOp < vertex)
 	{
 		cstep++;
-		// extend maximum latency
-		if (cstep > ConstrainedLatency)
-			for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
-				if ((*pnode)->cstep == 0) // operations that have not been scheduled
-					(*pnode)->setALAP((*pnode)->alap+1);
 
 		// determine ready operations in cstep
 		// (i.e. ops whose time frame intersects the current cstep)
@@ -175,10 +170,10 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 		}
 
 		// build distribution graph
-		map<string,vector<double>> DG;// type step dg
+		label: map<string,vector<double>> DG;// type step dg
 		for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
 		{
-			vector<double> temp(max(cstep,cdepth) + MUL_DELAY,0);
+			vector<double> temp(ConstrainedLatency+MUL_DELAY,0);
 			DG[mapResourceType(pnr->first)] = temp;
 		}
 		for (auto pnode = adjlist.cbegin(); pnode != adjlist.cend(); ++pnode)
@@ -205,6 +200,18 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 		// test if the operations in readyList can be placed in this cstep
 		for (int i = 0; i < readyList.size(); )
 		{
+			int cnt = 0;
+			for (auto op: readyList)
+				if (op->alap == cstep)
+					cnt++;
+			if (cnt == readyList.size())
+			{
+				// extend maximum latency
+				for (auto pnode = readyList.cbegin(); pnode != readyList.cend(); ++pnode)
+					(*pnode)->extendALAP((*pnode)->alap+1);
+				// reevaluate time frames
+				goto label;
+			}
 			// cout << readyList[i]->num+1 << " " << readyList[i]->asap << " " << readyList[i]->alap << endl;
 			int flag = 1;
 			for (int d = 1; d <= readyList[i]->delay; ++d)

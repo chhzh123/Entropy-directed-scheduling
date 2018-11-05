@@ -122,7 +122,7 @@ string graph::mapResourceType(const string type) const
 
 bool graph::newScheduleNodeStep(VNode* const& node,int step)
 {
-	cout << node->num << " " << step << endl;
+	// cout << node->num << " " << step << endl;
 	if (step + node->delay - 1 > ConstrainedLatency) // important to minus 1
 	{
 		cout << "Invalid schedule!" << endl;

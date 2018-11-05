@@ -39,9 +39,9 @@ const vector<string> dot_file = {
 	"jpeg_fdct_islow_dfg__6"/*c*/,
 	"smooth_color_z_triangle_dfg__31"/*c*/,
 	"invert_matrix_general_dfg__3"/*c*/,
-	// "dag_500",
-	// "dag_1000",
-	// "dag_1500"
+	"dag_500",
+	"dag_1000",
+	"dag_1500"
 };
 
 // if you need to load from other path, please modify here
@@ -57,7 +57,7 @@ string path = "./Benchmarks/";
 //  year	=	{2007}
 // }
 // -----------------------------------------------------------------
-const int RC[22][2] = {
+const int RC[24][2] = {
 	{0,0},/*null*/
 	{2,1},/*1*/
 	{2,1},/*2*/
@@ -79,7 +79,9 @@ const int RC[22][2] = {
 	{5,7},/*18*/
 	{8,9},/*19*/
 	{15,11},/*20*/
-	{25,20}/*21*/
+	{5,9},/*21*/
+	{6,12},/*22*/
+	{7,13},/*23*/
 };
 
 void interactive()
@@ -87,8 +89,8 @@ void interactive()
 	while (1)
 	{
 		cout << "\nPlease enter the file num." << endl;
-		for (int i = 1; i < 21; ++i)
-			cout << i << ": " << dot_file[i] << endl;
+		for (int file_num = 1; file_num < dot_file.size(); ++file_num)
+			cout << file_num << ": " << dot_file[file_num] << endl;
 		int file_num;
 		cin >> file_num;
 		cout << "Begin reading dot file..." << endl;
@@ -104,8 +106,8 @@ void interactive()
 		graph gp;
 		vector<int> MODE;
 		cout << "\nPlease enter the scheduling mode:" << endl;
-		cout << "Time-constrained(TC):\t0  EDS(DFS)\t1  EDS(Kahn)\t2  ILP\t3  FDS\t4  LS" << endl;
-		cout << "Resource-constrained(RC):\t10 EDS(DFS)\t11 EDS(Kahn)\t12 ILP\t13 FDS\t 14 LS" << endl;
+		cout << "Time-constrained(TC):\t0  EDS\t1  IEDS\t2  ILP\t3  FDS\t4  LS" << endl;
+		cout << "Resource-constrained(RC):\t10 EDS\t11 IEDS\t12 ILP\t13 FDS\t 14 LS" << endl;
 		int mode;
 		cin >> mode;
 		MODE.push_back(mode);
@@ -158,8 +160,8 @@ void interactive()
 // set these argv from cmd
 // argv[0] default file path: needn't give
 // argv[1] scheduling mode:
-// 			time-constrained(TC):		0  EDS(DFS)  1  EDS(Kahn)    2  ILP    3  FDS   4  LS
-//			resource-constrained(RC):	10 EDS(DFS)  11 EDS(Kahn)    12 ILP    13 FDS   14 LS
+// 			time-constrained(TC):		0  EDS    1  IEDS    2  ILP    3  FDS   4  LS
+//			resource-constrained(RC):	10 EDS    11 IEDS    12 ILP    13 FDS   14 LS
 // ****** If the arguments below are not needed, you needn't type anything more. ******
 // argv[2] latency factor (LC) or scheduling order
 //                                0 top-down  1 bottom-up
