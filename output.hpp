@@ -72,9 +72,11 @@ void graph::standardOutput() const
 	printGanttGraph();
 	cout << "Total latency: " << maxLatency << endl;
 	if (MODE[0] >= 10)
-		cout << "Constrained resource:\n"
-				"MUL: " << MAXRESOURCE.first << endl <<
-				"ALU: " << MAXRESOURCE.second << endl;
+	{
+		cout << "Constrained resource:\n" << endl;
+		for (auto p = MAXRESOURCE.cbegin(); p != MAXRESOURCE.cend(); ++p)
+			cout << p->first << ": " << p->second << endl;
+	}
 	cout << "Resource used:" << endl;
 	countResource();
 }

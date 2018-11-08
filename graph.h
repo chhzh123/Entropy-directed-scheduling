@@ -145,8 +145,8 @@ public:
 	inline void setLC(double _LC) { LC = _LC; };
 	inline void setConstrainedLatency(int conlatency) { ConstrainedLatency = conlatency; };
 	inline void setMODE(std::vector<int> _MODE) { MODE = _MODE; };
-	inline void setMAXRESOURCE(int mul,int alu)
-		{ MAXRESOURCE.first = mul; MAXRESOURCE.second = alu; };
+	inline void setMAXRESOURCE(const std::map<std::string,int> gr)
+		{ MAXRESOURCE = gr; };
 	inline void setPRINT(int mode) { if (mode == 0) PRINT = false; };
 	inline double getLC() const {return LC;};
 
@@ -223,7 +223,7 @@ private:
 	double LC = 1;
 	int ConstrainedLatency;
 	// for resource-constrained scheduling
-	std::pair<int,int> MAXRESOURCE;
+	std::map<std::string,int> MAXRESOURCE;
 
 	std::vector<int> MODE;
 	bool PRINT = true;

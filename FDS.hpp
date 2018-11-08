@@ -134,16 +134,10 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
-		if (pnr->first == "mul" || pnr->first == "MUL")
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.first;
-		}
-		else
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.second;
-		}
+	{
+		temp[pnr->first] = 0;
+		maxNr[pnr->first] = MAXRESOURCE[pnr->first];
+	}
 	nrt.push_back(temp); // nrt[0]
 
 	print("Begin placing operations...");
@@ -209,6 +203,7 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 				// extend maximum latency
 				for (auto pnode = readyList.cbegin(); pnode != readyList.cend(); ++pnode)
 					(*pnode)->extendALAP((*pnode)->alap+1);
+				ConstrainedLatency++;
 				// reevaluate time frames
 				goto label;
 			}

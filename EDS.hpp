@@ -223,16 +223,10 @@ void graph::RC_EDS() // Resource-constrained EDS
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
-		if (pnr->first == "mul" || pnr->first == "MUL")
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.first;
-		}
-		else
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.second;
-		}
+	{
+		temp[pnr->first] = 0;
+		maxNr[pnr->first] = MAXRESOURCE[pnr->first];
+	}
 	nrt.push_back(temp); // nrt[0]
 
 	// NO nrt.push_back! NO placeCriticalPath!
@@ -283,16 +277,10 @@ void graph::RC_IEDS() // Resource-constrained EDS
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
-		if (pnr->first == "mul" || pnr->first == "MUL")
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.first;
-		}
-		else
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.second;
-		}
+	{
+		temp[pnr->first] = 0;
+		maxNr[pnr->first] = MAXRESOURCE[pnr->first];
+	}
 	nrt.push_back(temp); // nrt[0]
 
 	// NO nrt.push_back! NO placeCriticalPath!

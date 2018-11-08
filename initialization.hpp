@@ -112,11 +112,11 @@ string graph::mapResourceType(const string type) const
 	// return "ALL";
 	if (type == "mul" || type == "MUL" || type == "div" || type == "DIV")
 		return "MUL";
-	if (type == "sub" || type == "add" || type == "SUB" || type == "ADD" ||
-		type == "NEG" || type == "AND" || type == "les" || type == "LSR" || type == "ASR" ||
-		type == "imp" || type == "exp" || type == "MemR" || type == "MemW" ||
-		type == "STR" || type == "LOD" || type == "BNE" || type == "BGE" || type == "LSL")
-		return "ALU";
+	// if (type == "sub" || type == "add" || type == "SUB" || type == "ADD" ||
+	// 	type == "NEG" || type == "AND" || type == "les" || type == "LSR" || type == "ASR" ||
+	// 	type == "imp" || type == "exp" || type == "MemR" || type == "MemW" ||
+	// 	type == "STR" || type == "LOD" || type == "BNE" || type == "BGE" || type == "LSL")
+	// 	return "ALU";
 	return type;
 }
 

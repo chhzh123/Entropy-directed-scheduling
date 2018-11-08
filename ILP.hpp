@@ -156,10 +156,7 @@ void graph::generateRC_ILP(ofstream& outfile)
 								<< "," << i-d << ((j == rowResource[i][ptype->first].size()-1 && (d == adjlist[rowResource[i][ptype->first][j]]->delay-1 || i-d == 1)) ? "" : " + ");
 					else
 						break;
-			if (ptype->first == "MUL") // ptype->first == "mul" || 
-				outfile << " <= " << MAXRESOURCE.first << endl; // differenet
-			else
-				outfile << " <= " << MAXRESOURCE.second << endl;
+			outfile << " <= " << MAXRESOURCE[ptype->first] << endl;
 		}
 	cout << "Resource constraints generated." << endl;
 

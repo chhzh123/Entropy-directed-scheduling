@@ -78,16 +78,10 @@ void graph::RC_LS() // Resource-constrained List Scheduling
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
 	for (auto pnr = nr.cbegin(); pnr != nr.cend(); ++pnr)
-		if (pnr->first == "MUL")
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.first;
-		}
-		else
-		{
-			temp[pnr->first] = 0;
-			maxNr[pnr->first] = MAXRESOURCE.second;
-		}
+	{
+		temp[pnr->first] = 0;
+		maxNr[pnr->first] = MAXRESOURCE[pnr->first];
+	}
 	for (int i = 0; i < vertex; ++i)
 		nrt.push_back(temp);
 
