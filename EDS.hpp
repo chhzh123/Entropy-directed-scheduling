@@ -1,5 +1,4 @@
-// Copyright 2018 SYSU
-// Author: Hongzheng Chen
+// Copyright (c) 2018 Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
 // This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
@@ -9,7 +8,7 @@
 void graph::TC_EDS(int order_mode)
 {
 	print("Begin EDS...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS(order_mode);
 	// initialize N_r(t)
 	map<string,int> temp;
@@ -47,15 +46,15 @@ void graph::TC_EDS(int order_mode)
 		// cout << (*pnode)->num+1 << " (" << (*pnode)->name << "): " << a << " " << b << " Step: " << minstep << endl;
 		scheduleNodeStep(*pnode,minstep);
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Finish EDS!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::TC_IEDS(int order_mode)
 {
 	print("Begin IEDS...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS(order_mode);
 	// initialize N_r(t)
 	map<string,int> temp;
@@ -208,17 +207,17 @@ void graph::TC_IEDS(int order_mode)
 			cnt++;
 		}
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	countEachStepResource();
 	print("Finish fine-tune.\n");
 	print("Finish IEDS!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::RC_EDS() // Resource-constrained EDS
 {
 	print("Begin EDS...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS(0);
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
@@ -263,16 +262,16 @@ void graph::RC_EDS() // Resource-constrained EDS
 		}
 		scheduleNodeStepResource(*pnode,maxstep); // some differences
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 	print("Finish EDS!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::RC_IEDS() // Resource-constrained EDS
 {
 	print("Begin IEDS...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS(1);
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
@@ -317,10 +316,10 @@ void graph::RC_IEDS() // Resource-constrained EDS
 		}
 		scheduleNodeStepResource(*pnode,maxstep); // some differences
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 	print("Finish IEDS!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::placeCriticalPath()

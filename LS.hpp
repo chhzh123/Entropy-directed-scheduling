@@ -1,5 +1,4 @@
-// Copyright 2018 SYSU
-// Author: Hongzheng Chen
+// Copyright (c) 2018 Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
 // This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
@@ -9,7 +8,7 @@
 void graph::TC_LS() // Time-constrained List Scheduling
 {
 	print("Begin time-constrained list scheduling (LS)...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 
 	// obtain time frame (ASAP & ALAP)
 	topologicalSortingDFS();
@@ -60,17 +59,17 @@ void graph::TC_LS() // Time-constrained List Scheduling
 			}
 	}
 
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 
 	print("Finish list scheduling!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::RC_LS() // Resource-constrained List Scheduling
 {
 	print("Begin resource-constrained list scheduling (LS)...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 
 	// obtain time frame (ASAP & ALAP)
 	topologicalSortingDFS();
@@ -125,9 +124,9 @@ void graph::RC_LS() // Resource-constrained List Scheduling
 		}
 	}
 
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 
 	print("Finish list scheduling!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }

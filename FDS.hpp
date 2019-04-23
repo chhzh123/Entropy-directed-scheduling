@@ -1,5 +1,4 @@
-// Copyright 2018 SYSU
-// Author: Hongzheng Chen
+// Copyright (c) 2018 Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
 // This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
@@ -62,7 +61,7 @@ double graph::calPredForce(VNode* const& v,int cstep,const map<string,vector<dou
 void graph::TC_FDS() // Time-constrained Force-Directed Scheduling
 {
 	print("Begin time-constrained force-directed scheduling (FDS)...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS();
 	// initialize N_r(t)
 	map<string,int> temp;
@@ -120,16 +119,16 @@ void graph::TC_FDS() // Time-constrained Force-Directed Scheduling
 				break;
 		// scheduleNodeStep(adjlist[bestop],beststep,2);
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 	print("Finish force-directed scheduling!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }
 
 void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 {
 	print("Begin resource-constrained force-directed scheduling (FDS)...\n");
-	watch.restart();
+	auto t1 = Clock::now();
 	topologicalSortingDFS();
 	// initialize N_r(t)
 	map<string,int> temp,maxNr;
@@ -225,8 +224,8 @@ void graph::RC_FDS() // Resource-constrained Force-Directed Scheduling
 			i++;
 		}
 	}
-	watch.stop();
+	auto t2 = Clock::now();
 	print("Placing operations done!\n");
 	print("Finish force-directed scheduling!\n");
-	cout << "Total time used: " << watch.elapsed() << " micro-seconds" << endl;
+	cout << "Total time used: " << std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() << " ns" << endl;
 }

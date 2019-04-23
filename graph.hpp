@@ -1,5 +1,4 @@
-// Copyright 2018 SYSU
-// Author: Hongzheng Chen
+// Copyright (c) 2018 Hongzheng Chen
 // E-mail: chenhzh37@mail2.sysu.edu.cn
 
 // This is the implementation of Entropy-directed scheduling (EDS) algorithm for FPGA high-level synthesis.
@@ -15,10 +14,6 @@
 #include <algorithm>
 #include <iterator>
 #include <cmath>
-
-#include "watch.h" // for high-accuracy time counting
-// for high-accuracy time counting
-stop_watch watch;
 
 #include "graph.h"
 #include "initialization.hpp"
