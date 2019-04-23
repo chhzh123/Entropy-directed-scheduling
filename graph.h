@@ -149,6 +149,7 @@ public:
 		{ MAXRESOURCE = gr; };
 	inline void setPRINT(int mode) { if (mode == 0) PRINT = false; };
 	inline double getLC() const {return LC;};
+	inline int getMaxLatency() const {return maxLatency;};
 
 private:
 	// initialization
